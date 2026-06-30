@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BUILDER OS — Status Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0B1B2B;
+    --panel:     #122A3F;
+    --panel-2:   #0E2236;
+    --line:      #1F3F58;
+    --line-dim:  #16344A;
+    --cyan:      #4FA8D8;
+    --cyan-dim:  #2E5573;
+    --amber:     #E8A33D;
+    --red:       #D9534F;
+    --green:     #4CAF82;
+    --text:      #E7EEF5;
+    --text-dim:  #7E92A8;
+    --text-faint:#4D6178;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      linear-gradient(var(--bg), var(--bg)) ,
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(79,168,216,0.035) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(79,168,216,0.035) 40px);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  a { color: var(--cyan); }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  /* ── HEADER / STATUS BAR ───────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .statusbar::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--cyan);
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    color: var(--text);
+  }
+  .wordmark span { color: var(--cyan); }
+  .tagline {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+  .status-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .level-badge {
+    text-align: right;
+  }
+  .level-badge .num {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+  }
+  .level-badge .title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .sync-info {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    text-align: right;
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--panel-2);
+    border: 1px solid var(--cyan-dim);
+    color: var(--cyan);
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+  .btn:hover { border-color: var(--cyan); background: #0F2A40; }
+  .btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 1px;
+  }
+  .btn.small { padding: 5px 10px; font-size: 10px; }
+  .btn.danger { border-color: #6B3531; color: var(--red); }
+  .btn.danger:hover { border-color: var(--red); background: #2A1414; }
+  .btn.confirm { border-color: var(--green); color: var(--green); }
+
+  /* ── SECTION LABEL ─────────────────────────────────── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 28px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line-dim);
+  }
+
+  /* ── GAUGE PANEL ───────────────────────────────────── */
+  .gauge-panel {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  @media (max-width: 880px) {
+    .gauge-panel { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .gauge-panel { grid-template-columns: repeat(2, 1fr); }
+  }
+  .gauge-cell {
+    background: var(--panel);
+    padding: 16px 8px 12px;
+    text-align: center;
+  }
+  .gauge-cell svg { display: block; margin: 0 auto; }
+  .gauge-needle {
+    transform-origin: 60px 60px;
+    transition: transform 0.9s cubic-bezier(.34,1.56,.64,1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gauge-needle { transition: none; }
+  }
+  .gauge-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+  .gauge-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .gauge-cell.flag-decay .gauge-value { color: var(--amber); }
+  .gauge-cell.flag-critical .gauge-value { color: var(--red); }
+  .gauge-cell.flag-ok .gauge-value { color: var(--text); }
+
+  /* ── ALARM STRIP ───────────────────────────────────── */
+  .alarm-strip {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .alarm-strip.nominal { border-color: #1F3D2E; }
+  .alarm-strip.active { border-color: #4A3318; }
+  .alarm-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .alarm-strip.nominal .alarm-dot { background: var(--green); }
+  .alarm-strip.active .alarm-dot {
+    background: var(--amber);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .alarm-strip.active .alarm-dot { animation: none; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(232,163,61,0.5); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(232,163,61,0); }
+  }
+  .alarm-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .alarm-strip.nominal .alarm-label { color: var(--green); }
+  .alarm-chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    background: #2A1F0E;
+    color: var(--amber);
+    border: 1px solid #4A3318;
+    padding: 3px 9px;
+  }
+
+  /* ── TELEMETRY STRIP ───────────────────────────────── */
+  .telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .telemetry-cell {
+    background: var(--panel);
+    padding: 12px 14px;
+  }
+  .telemetry-cell .tval {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--cyan);
+  }
+  .telemetry-cell .tunit {
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-left: 3px;
+  }
+  .telemetry-cell .tlabel {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  /* ── TASK LOG TABLE ────────────────────────────────── */
+  .table-wrap {
+    border: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  table.tasks {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    min-width: 920px;
+  }
+  table.tasks thead th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: var(--panel-2);
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  table.tasks tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line-dim);
+    background: var(--panel);
+    vertical-align: middle;
+  }
+  table.tasks tbody tr:hover td { background: #14304A; }
+  table.tasks tbody tr.row-new td { background: #102A20; }
+  table.tasks input[type=text], table.tasks input[type=number], table.tasks input[type=date], table.tasks select {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    padding: 4px 5px;
+    border-radius: 2px;
+  }
+  table.tasks input[type=number] { font-family: var(--mono); }
+  table.tasks input:hover, table.tasks select:hover { border-color: var(--line); }
+  table.tasks input:focus, table.tasks select:focus {
+    border-color: var(--cyan);
+    background: #0E2236;
+    outline: none;
+  }
+  .col-id { width: 70px; font-family: var(--mono); color: var(--text-dim); }
+  .col-domain, .col-type, .col-stat { width: 90px; }
+  .col-points { width: 56px; }
+  .col-due { width: 130px; }
+  .col-status { width: 100px; }
+  .col-actions { width: 110px; white-space: nowrap; }
+  .status-pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+  }
+  .status-pill.complete { color: var(--green); border: 1px solid #2A4F3A; }
+  .status-pill.pending  { color: var(--cyan); border: 1px solid var(--cyan-dim); }
+  .status-pill.overdue  { color: var(--red); border: 1px solid #6B3531; }
+  .row-dirty td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+
+  .table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border-top: 1px solid var(--line);
+  }
+
+  /* ── EMPTY / LOADING / ERROR ───────────────────────── */
+  .msg {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 20px;
+    text-align: center;
+    border: 1px dashed var(--line);
+  }
+  .msg.error { color: var(--red); border-color: #6B3531; }
+
+  footer.page {
+    margin-top: 30px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+  }
+
+  ::-webkit-scrollbar { height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); }
+  ::-webkit-scrollbar-track { background: var(--panel-2); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="statusbar">
+    <div>
+      <div class="wordmark">BUILDER<span>OS</span></div>
+      <div class="tagline" id="tagline">I build myself. I build systems. I build people.</div>
+    </div>
+    <div class="status-right">
+      <div class="level-badge">
+        <div class="num" id="levelNum">--</div>
+        <div class="title" id="levelTitle">LOADING</div>
+      </div>
+      <div class="sync-info">
+        <div id="syncDate">--</div>
+        <div id="syncTime">--</div>
+      </div>
+      <button class="btn" id="refreshBtn" type="button">↻ Refresh</button>
+    </div>
+  </div>
+
+  <div class="section-label">Pillar Status</div>
+  <div class="gauge-panel" id="gaugePanel"></div>
+
+  <div style="margin-top:14px;">
+    <div class="alarm-strip nominal" id="alarmStrip">
+      <span class="alarm-dot"></span>
+      <span class="alarm-label" id="alarmLabel">SYSTEMS NOMINAL</span>
+    </div>
+  </div>
+
+  <div class="section-label">Health Telemetry — Today</div>
+  <div class="telemetry-grid" id="telemetryGrid">
+    <div class="msg" style="grid-column:1/-1;">Loading…</div>
+  </div>
+
+  <div class="section-label">Work Order Log — Tasks</div>
+  <div class="table-wrap">
+    <table class="tasks">
+      <thead>
+        <tr>
+          <th class="col-id">ID</th>
+          <th class="col-domain">Domain</th>
+          <th>Task</th>
+          <th class="col-type">Type</th>
+          <th class="col-stat">Stat</th>
+          <th class="col-stat">Stat 2</th>
+          <th class="col-points">Pts On</th>
+          <th class="col-points">Pts Late</th>
+          <th class="col-due">Due</th>
+          <th class="col-status">Status</th>
+          <th class="col-actions">Action</th>
+        </tr>
+      </thead>
+      <tbody id="taskBody">
+        <tr><td colspan="11" class="msg">Loading task log…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-footer">
+    <button class="btn small" id="addTaskBtn" type="button">+ Add Task</button>
+    <span class="sync-info" id="taskCount"></span>
+  </div>
+
+  <datalist id="domainOptions">
+    <option value="SCHOOL"><option value="WORK"><option value="HUSTLE">
+    <option value="HEALTH"><option value="HELP"><option value="INNER"><option value="SOV">
+  </datalist>
+  <datalist id="statOptions">
+    <option value="STR"><option value="END"><option value="REC">
+    <option value="INT"><option value="EQ"><option value="SOV"><option value="BLD">
+  </datalist>
+  <datalist id="statusOptions">
+    <option value="PENDING"><option value="COMPLETE"><option value="OVERDUE"><option value="CANCELLED">
+  </datalist>
+
+  <footer class="page">BUILDER OS · v1.0 · data via Google Apps Script</footer>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — update this if you redeploy the Apps Script (Edit →
+// New version → Deploy keeps this URL the same; only a brand
+// new deployment changes it).
+// ============================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZKD79oImowJl0swveHiba5VYWxzPUBHWg1wvzd48dhoWxqnT0npKaM6koHsm_KkSfyA/exec';
+
+const STAT_KEYS = [
+  { key: 'str', label: 'STR', decayKey: 'STR-DECAY' },
+  { key: 'end', label: 'END', decayKey: 'END-DECAY' },
+  { key: 'rec', label: 'REC', decayKey: null },
+  { key: 'int', label: 'INT', decayKey: 'INT-DECAY' },
+  { key: 'eq',  label: 'EQ',  decayKey: 'EQ-DECAY'  },
+  { key: 'sov', label: 'SOV', decayKey: 'SOV-DECAY' },
+];
+
+let currentTasks = [];
+let dirtyRows = new Set();
+
+// ── API HELPERS ────────────────────────────────────────────
+async function apiGet(action, params) {
+  const url = new URL(APPS_SCRIPT_URL);
+  url.searchParams.set('action', action);
+  if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+
+// text/plain content-type avoids a CORS preflight against the Apps
+// Script endpoint — doPost still parses the body as JSON regardless.
+async function apiPost(action, body) {
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...body }),
+  });
+  return res.json();
+}
+
+// ── GAUGE RENDERING ────────────────────────────────────────
+function gaugeSVG(value, color) {
+  const v = Math.max(0, Math.min(100, Number(value) || 0));
+  const angle = -120 + (v / 100) * 240; // -120deg (0) to +120deg (100)
+  const ticks = [];
+  for (let i = 0; i <= 10; i++) {
+    const a = (-120 + (i / 10) * 240) * Math.PI / 180;
+    const x1 = 60 + 46 * Math.sin(a), y1 = 60 - 46 * Math.cos(a);
+    const x2 = 60 + 52 * Math.sin(a), y2 = 60 - 52 * Math.cos(a);
+    ticks.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#2E5573" stroke-width="1.5"/>`);
+  }
+  return `
+  <svg width="120" height="92" viewBox="0 0 120 78">
+    <circle cx="60" cy="60" r="52" fill="none" stroke="#1F3F58" stroke-width="1"/>
+    ${ticks.join('')}
+    <line class="gauge-needle" x1="60" y1="60" x2="60" y2="20"
+          stroke="${color}" stroke-width="2.5" stroke-linecap="round"
+          style="transform: rotate(${angle}deg);"/>
+    <circle cx="60" cy="60" r="4" fill="${color}"/>
+  </svg>`;
+}
+
+function renderGauges(stats, decayFlags) {
+  const panel = document.getElementById('gaugePanel');
+  if (!stats) {
+    panel.innerHTML = '<div class="msg" style="grid-column:1/-1;">No stat history yet — run dailyRecalc() or check in once.</div>';
+    return;
+  }
+  const flags = (decayFlags || '').toUpperCase();
+  panel.innerHTML = STAT_KEYS.map(s => {
+    const val = stats[s.key];
+    const isDecaying = s.decayKey && flags.includes(s.decayKey);
+    const isCritical = Number(val) < 20;
+    let cellClass = 'flag-ok', color = '#E7EEF5';
+    if (isCritical) { cellClass = 'flag-critical'; color = '#D9534F'; }
+    else if (isDecaying) { cellClass = 'flag-decay'; color = '#E8A33D'; }
+    const display = (val === '' || val == null) ? '--' : val;
+    return `
+      <div class="gauge-cell ${cellClass}">
+        ${gaugeSVG(val, color)}
+        <div class="gauge-value">${display}</div>
+        <div class="gauge-label">${s.label}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderAlarms(decayFlags, pillarCap) {
+  const strip = document.getElementById('alarmStrip');
+  const label = document.getElementById('alarmLabel');
+  const flags = (decayFlags || '').trim();
+  if (!flags && pillarCap !== 'YES') {
+    strip.className = 'alarm-strip nominal';
+    label.textContent = 'SYSTEMS NOMINAL';
+    return;
+  }
+  strip.className = 'alarm-strip active';
+  const chips = flags.split(/\s+/).filter(Boolean)
+    .map(f => `<span class="alarm-chip">${f}</span>`).join('');
+  label.innerHTML = 'ALERT';
+  strip.innerHTML = `<span class="alarm-dot"></span><span class="alarm-label">ALERT</span>${chips}` +
+    (pillarCap === 'YES' ? '<span class="alarm-chip">PILLAR-CAP</span>' : '');
+}
+
+// ── TELEMETRY RENDERING ────────────────────────────────────
+function tcell(val, unit, label) {
+  const display = (val === '' || val == null) ? '--' : val;
+  return `<div class="telemetry-cell">
+    <span class="tval">${display}</span><span class="tunit">${unit || ''}</span>
+    <div class="tlabel">${label}</div>
+  </div>`;
+}
+
+function renderTelemetry(health) {
+  const grid = document.getElementById('telemetryGrid');
+  if (!health) {
+    grid.innerHTML = '<div class="msg" style="grid-column:1/-1;">No health data synced for today yet.</div>';
+    return;
+  }
+  grid.innerHTML = [
+    tcell(health.hrv, 'ms', 'HRV'),
+    tcell(health.resting_hr, 'bpm', 'Resting HR'),
+    tcell(health.sleep_duration, 'hr', 'Sleep'),
+    tcell(health.steps, '', 'Steps'),
+    tcell(health.active_energy, 'kcal', 'Active Energy'),
+    tcell(health.stand_hours, 'hr', 'Stand Hours'),
+    tcell(health.rec_score, '', 'REC Score'),
+    tcell(health.mood, '/10', 'Mood'),
+  ].join('');
+}
+
+// ── TASK TABLE RENDERING ───────────────────────────────────
+function statusPillClass(status) {
+  const s = (status || '').toUpperCase();
+  if (s === 'COMPLETE') return 'complete';
+  if (s === 'OVERDUE') return 'overdue';
+  return 'pending';
+}
+
+function taskRowHTML(t, idx, isNew) {
+  const dueVal = t.due_date ? String(t.due_date).substring(0, 10) : '';
+  return `
+  <tr data-idx="${idx}" class="${isNew ? 'row-new' : ''}">
+    <td class="col-id">${isNew ? '<input type="text" data-field="task_id" placeholder="ID" />' : t.task_id}</td>
+    <td class="col-domain"><input type="text" data-field="domain" list="domainOptions" value="${esc(t.domain)}" /></td>
+    <td><input type="text" data-field="task_name" value="${esc(t.task_name)}" /></td>
+    <td class="col-type">
+      <select data-field="type">
+        <option value="RECURRING" ${t.type === 'RECURRING' ? 'selected' : ''}>RECURRING</option>
+        <option value="MILESTONE" ${t.type === 'MILESTONE' ? 'selected' : ''}>MILESTONE</option>
+      </select>
+    </td>
+    <td class="col-stat"><input type="text" data-field="stat_primary" list="statOptions" value="${esc(t.stat_primary)}" /></td>
+    <td class="col-stat"><input type="text" data-field="stat_secondary" list="statOptions" value="${esc(t.stat_secondary)}" /></td>
+    <td class="col-points"><input type="number" data-field="points_on_time" value="${esc(t.points_on_time)}" /></td>
+    <td class="col-points"><input type="number" data-field="points_late" value="${esc(t.points_late)}" /></td>
+    <td class="col-due"><input type="date" data-field="due_date" value="${dueVal}" /></td>
+    <td class="col-status">
+      <input type="text" data-field="status" list="statusOptions" value="${esc(t.status)}" />
+    </td>
+    <td class="col-actions">
+      <button class="btn small confirm" data-action="save">${isNew ? 'Add' : 'Save'}</button>
+      ${isNew ? '' : '<button class="btn small danger" data-action="delete">Del</button>'}
+    </td>
+  </tr>`;
+}
+
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/"/g, '&quot;');
+}
+
+function renderTasks() {
+  const body = document.getElementById('taskBody');
+  if (!currentTasks.length) {
+    body.innerHTML = '<tr><td colspan="11" class="msg">No tasks yet — add one below.</td></tr>';
+  } else {
+    body.innerHTML = currentTasks.map((t, i) => taskRowHTML(t, i, false)).join('');
+  }
+  document.getElementById('taskCount').textContent = currentTasks.length + ' tasks';
+  wireTaskRowEvents();
+}
+
+function readRowValues(tr) {
+  const out = {};
+  tr.querySelectorAll('[data-field]').forEach(el => {
+    out[el.dataset.field] = el.value;
+  });
+  if (out.points_on_time !== undefined) out.points_on_time = Number(out.points_on_time) || 0;
+  if (out.points_late !== undefined) out.points_late = Number(out.points_late) || 0;
+  return out;
+}
+
+function wireTaskRowEvents() {
+  document.querySelectorAll('#taskBody tr[data-idx]').forEach(tr => {
+    tr.querySelectorAll('[data-field]').forEach(el => {
+      el.addEventListener('input', () => tr.classList.add('row-dirty'));
+    });
+    const saveBtn = tr.querySelector('[data-action="save"]');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const vals = readRowValues(tr);
+        saveBtn.textContent = '...';
+        const result = await apiPost('update_task', { task_id: tr.querySelector('.col-id').textContent.trim(), ...vals });
+        if (result.error) {
+          alert('Save failed: ' + result.error);
+          saveBtn.textContent = 'Save';
+          return;
+        }
+        tr.classList.remove('row-dirty');
+        saveBtn.textContent = 'Save';
+        loadAll();
+      });
+    }
+    const delBtn = tr.querySelector('[data-action="delete"]');
+    if (delBtn) {
+      delBtn.addEventListener('click', async () => {
+        if (delBtn.textContent !== 'Confirm?') {
+          delBtn.textContent = 'Confirm?';
+          return;
+        }
+        const taskId = tr.querySelector('.col-id').textContent.trim();
+        const result = await apiPost('delete_task', { task_id: taskId });
+        if (result.error) { alert('Delete failed: ' + result.error); return; }
+        loadAll();
+      });
+    }
+  });
+}
+
+function addBlankTaskRow() {
+  const body = document.getElementById('taskBody');
+  if (body.querySelector('.row-new')) return; // only one pending add at a time
+  const blank = { task_id: '', domain: '', task_name: '', type: 'RECURRING', stat_primary: '', stat_secondary: '', points_on_time: 0, points_late: 0, due_date: '', status: 'PENDING' };
+  if (!currentTasks.length) body.innerHTML = '';
+  body.insertAdjacentHTML('beforeend', taskRowHTML(blank, 'new', true));
+  const newRow = body.querySelector('.row-new');
+  newRow.querySelector('[data-action="save"]').addEventListener('click', async () => {
+    const vals = readRowValues(newRow);
+    if (!vals.task_id) { alert('Task ID is required.'); return; }
+    const result = await apiPost('add_task', vals);
+    if (result.error) { alert('Add failed: ' + result.error); return; }
+    loadAll();
+  });
+}
+
+// ── MAIN LOAD ───────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('refreshBtn').textContent = '↻ Syncing…';
+  try {
+    const [statsRes, healthRes, tasksRes] = await Promise.all([
+      apiGet('today_stats'),
+      apiGet('today_health'),
+      apiGet('tasks'),
+    ]);
+
+    const stats = statsRes.stats;
+    if (stats) {
+      document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
+      document.getElementById('levelTitle').textContent = stats.builder_title || '--';
+      document.getElementById('syncDate').textContent = stats.date || '--';
+      document.getElementById('syncTime').textContent = stats.calculated_at || '';
+      renderGauges(stats, stats.decay_flags);
+      renderAlarms(stats.decay_flags, stats.pillar_cap);
+    } else {
+      renderGauges(null);
+    }
+
+    renderTelemetry(healthRes.health);
+
+    currentTasks = (tasksRes.tasks || []).filter(t => t.task_id);
+    renderTasks();
+
+  } catch (err) {
+    document.getElementById('gaugePanel').innerHTML =
+      `<div class="msg error" style="grid-column:1/-1;">Could not reach Builder OS backend. Check the connection and try again.</div>`;
+    console.error(err);
+  } finally {
+    document.getElementById('refreshBtn').textContent = '↻ Refresh';
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', loadAll);
+document.getElementById('addTaskBtn').addEventListener('click', addBlankTaskRow);
+
+loadAll();
+</script>
+</body>
+</html>
