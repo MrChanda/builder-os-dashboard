@@ -1185,7 +1185,11 @@ async function loadAll() {
   document.getElementById('refreshBtn').textContent = '↻ Syncing…';
   startBootSequence();
   try {
-    const [statsRes, healthRes, tasksRes, alcoholRes, trendRes, heatmapRes] = await Promise.all([
+    // allSettled instead of all — one flaky endpoint (e.g. Google's echo proxy
+    // returning a transient 404) degrades that section gracefully rather than
+    // wiping the entire dashboard. Each result is {status:'fulfilled',value:...}
+    // or {status:'rejected',reason:...}; we unwrap safely below.
+    const results = await Promise.allSettled([
       apiGet('today_stats'),
       apiGet('today_health'),
       apiGet('tasks'),
@@ -1193,6 +1197,22 @@ async function loadAll() {
       apiGet('stat_trend', { days: 30 }),
       apiGet('completions_heatmap', { days: 56 }),
     ]);
+
+    const unwrap = (r, fallback = {}) => r.status === 'fulfilled' ? r.value : fallback;
+
+    const statsRes    = unwrap(results[0]);
+    const healthRes   = unwrap(results[1]);
+    const tasksRes    = unwrap(results[2]);
+    const alcoholRes  = unwrap(results[3]);
+    const trendRes    = unwrap(results[4]);
+    const heatmapRes  = unwrap(results[5]);
+
+    // Log any individual failures to console for debugging without crashing the page
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') {
+        console.warn(`Builder OS: API call ${i} failed —`, r.reason);
+      }
+    });
 
     const stats = statsRes.stats;
     if (stats) {
