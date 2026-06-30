@@ -618,7 +618,7 @@
         <div class="title" id="levelTitle">LOADING</div>
       </div>
       <div class="sync-info">
-        <div id="syncDate">--</div>
+        <div id="syncDate" style="letter-spacing:0.04em; text-transform:uppercase; font-size:9.5px;">LAST UPDATED</div>
         <div id="syncTime">--</div>
       </div>
       <button class="btn" id="refreshBtn" type="button">↻ Refresh</button>
@@ -1180,6 +1180,24 @@ document.getElementById('logWaterCustomBtn').addEventListener('click', () => {
   document.getElementById('waterCustom').value = '';
 });
 
+// ── FORMAT SHEET TIMESTAMP ──────────────────────────────────
+// Converts the ISO timestamp from calculated_at into a human-readable
+// SAST time so the header shows when the sheet was last recalculated.
+function formatSheetTime(isoString) {
+  if (!isoString) return '--';
+  const d = new Date(isoString);
+  if (isNaN(d)) return String(isoString).substring(0, 16).replace('T', ' ');
+  return d.toLocaleString('en-ZA', {
+    day:      '2-digit',
+    month:    'short',
+    year:     'numeric',
+    hour:     '2-digit',
+    minute:   '2-digit',
+    hour12:   false,
+    timeZone: 'Africa/Johannesburg',
+  }).replace(',', '');
+}
+
 // ── MAIN LOAD ───────────────────────────────────────────────
 async function loadAll() {
   document.getElementById('refreshBtn').textContent = '↻ Syncing…';
@@ -1216,12 +1234,9 @@ async function loadAll() {
 
     const stats = statsRes.stats;
     if (stats) {
-    document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
-    document.getElementById('levelTitle').textContent = stats.builder_title || '--';
-    document.getElementById('syncDate').textContent = stats.date
-      ? String(stats.date).substring(0, 10) : '--';
-    document.getElementById('syncTime').textContent = stats.calculated_at
-      ? String(stats.calculated_at).substring(0, 16).replace('T', ' ') : '';
+      document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
+      document.getElementById('levelTitle').textContent = stats.builder_title || '--';
+      document.getElementById('syncTime').textContent = formatSheetTime(stats.calculated_at);
       renderGauges(stats, stats.decay_flags, trendRes.history);
       renderAlarms(stats.decay_flags, stats.pillar_cap);
       applyAvatar(stats.builder_level);
