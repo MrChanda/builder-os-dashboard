@@ -1216,10 +1216,12 @@ async function loadAll() {
 
     const stats = statsRes.stats;
     if (stats) {
-      document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
-      document.getElementById('levelTitle').textContent = stats.builder_title || '--';
-      document.getElementById('syncDate').textContent = stats.date || '--';
-      document.getElementById('syncTime').textContent = stats.calculated_at || '';
+    document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
+    document.getElementById('levelTitle').textContent = stats.builder_title || '--';
+    document.getElementById('syncDate').textContent = stats.date
+      ? String(stats.date).substring(0, 10) : '--';
+    document.getElementById('syncTime').textContent = stats.calculated_at
+      ? String(stats.calculated_at).substring(0, 16).replace('T', ' ') : '';
       renderGauges(stats, stats.decay_flags, trendRes.history);
       renderAlarms(stats.decay_flags, stats.pillar_cap);
       applyAvatar(stats.builder_level);
