@@ -9,19 +9,19 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:        #0B1B2B;
-    --panel:     #122A3F;
-    --panel-2:   #0E2236;
-    --line:      #1F3F58;
-    --line-dim:  #16344A;
-    --cyan:      #4FA8D8;
-    --cyan-dim:  #2E5573;
-    --amber:     #E8A33D;
-    --red:       #D9534F;
-    --green:     #4CAF82;
-    --text:      #E7EEF5;
-    --text-dim:  #7E92A8;
-    --text-faint:#4D6178;
+    --bg:        #EEF1F4;
+    --panel:     #FFFFFF;
+    --panel-2:   #F4F6F9;
+    --line:      #D7DEE6;
+    --line-dim:  #E6EBF0;
+    --cyan:      #0E7EA8;
+    --cyan-dim:  #A9C9D8;
+    --amber:     #B8721A;
+    --red:       #C0392B;
+    --green:     #2E8B57;
+    --text:      #1B2733;
+    --text-dim:  #5C6B7A;
+    --text-faint:#8C99A6;
     --mono: 'IBM Plex Mono', monospace;
     --sans: 'IBM Plex Sans', sans-serif;
   }
@@ -32,8 +32,8 @@
     margin: 0;
     background:
       linear-gradient(var(--bg), var(--bg)) ,
-      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(79,168,216,0.035) 40px),
-      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(79,168,216,0.035) 40px);
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(14,126,168,0.05) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(14,126,168,0.05) 40px);
     color: var(--text);
     font-family: var(--sans);
     font-size: 14px;
@@ -55,12 +55,13 @@
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 20px;
     border: 1px solid var(--line);
     background: var(--panel);
     padding: 16px 20px;
     margin-bottom: 20px;
     position: relative;
+    box-shadow: 0 1px 2px rgba(27,39,51,0.04);
   }
   .statusbar::before {
     content: "";
@@ -69,6 +70,35 @@
     width: 3px;
     background: var(--cyan);
   }
+  .identity-block {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+  }
+  .identity-portrait {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    border: 1px solid var(--line);
+    background: var(--panel-2);
+    overflow: hidden;
+    position: relative;
+  }
+  .identity-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+  .identity-portrait::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 0 1px rgba(14,126,168,0.15);
+  }
+  .identity-text { min-width: 0; }
   .wordmark {
     font-family: var(--mono);
     font-weight: 700;
@@ -83,6 +113,22 @@
     letter-spacing: 0.04em;
     margin-top: 2px;
   }
+  .boot-line {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--cyan);
+    margin-top: 4px;
+    display: none;
+  }
+  .boot-line::after {
+    content: "▌";
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  body.is-loading .boot-line { display: block; }
+  body.is-loading .tagline { display: none; }
   .status-right {
     display: flex;
     align-items: center;
@@ -112,6 +158,25 @@
     color: var(--text-faint);
     text-align: right;
   }
+
+  /* ── BOOT / SKELETON STATE ─────────────────────────── */
+  body.is-loading .gauge-panel,
+  body.is-loading .telemetry-grid,
+  body.is-loading .table-wrap,
+  body.is-loading .identity-portrait {
+    animation: skeleton-pulse 1.3s ease-in-out infinite;
+  }
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.is-loading .gauge-panel,
+    body.is-loading .telemetry-grid,
+    body.is-loading .table-wrap,
+    body.is-loading .identity-portrait { animation: none; }
+    .boot-line::after { animation: none; }
+  }
   .btn {
     font-family: var(--mono);
     font-size: 11px;
@@ -124,14 +189,14 @@
     cursor: pointer;
     transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
   }
-  .btn:hover { border-color: var(--cyan); background: #0F2A40; }
+  .btn:hover { border-color: var(--cyan); background: #E4EFF4; }
   .btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
     outline: 2px solid var(--cyan);
     outline-offset: 1px;
   }
   .btn.small { padding: 5px 10px; font-size: 10px; }
-  .btn.danger { border-color: #6B3531; color: var(--red); }
-  .btn.danger:hover { border-color: var(--red); background: #2A1414; }
+  .btn.danger { border-color: #E2B3AC; color: var(--red); }
+  .btn.danger:hover { border-color: var(--red); background: #FBEAE8; }
   .btn.confirm { border-color: var(--green); color: var(--green); }
 
   /* ── SECTION LABEL ─────────────────────────────────── */
@@ -196,6 +261,64 @@
   .gauge-cell.flag-decay .gauge-value { color: var(--amber); }
   .gauge-cell.flag-critical .gauge-value { color: var(--red); }
   .gauge-cell.flag-ok .gauge-value { color: var(--text); }
+  .gauge-spark {
+    margin-top: 6px;
+    height: 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .gauge-spark svg { display: block; }
+
+  /* ── CONSISTENCY HEATMAP ───────────────────────────── */
+  .heatmap-wrap {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 14px 16px;
+    overflow-x: auto;
+  }
+  .heatmap-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: max-content;
+  }
+  .heatmap-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .heatmap-domain {
+    width: 58px;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .heatmap-cells {
+    display: flex;
+    gap: 2px;
+  }
+  .heatmap-cell {
+    width: 9px;
+    height: 9px;
+    background: var(--panel-2);
+    border: 1px solid var(--line-dim);
+  }
+  .heatmap-cell.c1 { background: #A9D8E8; border-color: #7FC0D6; }
+  .heatmap-cell.c2 { background: var(--cyan); border-color: #0A6E92; }
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+  }
+  .heatmap-legend .heatmap-cell { cursor: default; }
 
   /* ── ALARM STRIP ───────────────────────────────────── */
   .alarm-strip {
@@ -207,8 +330,8 @@
     gap: 10px;
     flex-wrap: wrap;
   }
-  .alarm-strip.nominal { border-color: #1F3D2E; }
-  .alarm-strip.active { border-color: #4A3318; }
+  .alarm-strip.nominal { border-color: #BEE3CB; }
+  .alarm-strip.active { border-color: #F0CE99; }
   .alarm-dot {
     width: 8px; height: 8px; border-radius: 50%;
     flex-shrink: 0;
@@ -222,8 +345,8 @@
     .alarm-strip.active .alarm-dot { animation: none; }
   }
   @keyframes pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(232,163,61,0.5); }
-    50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(232,163,61,0); }
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(184,114,26,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(184,114,26,0); }
   }
   .alarm-label {
     font-family: var(--mono);
@@ -237,9 +360,9 @@
     font-family: var(--mono);
     font-size: 11px;
     letter-spacing: 0.04em;
-    background: #2A1F0E;
-    color: var(--amber);
-    border: 1px solid #4A3318;
+    background: #FBF0DC;
+    color: #9A5B12;
+    border: 1px solid #ECCE98;
     padding: 3px 9px;
   }
 
@@ -303,8 +426,8 @@
     background: var(--panel);
     vertical-align: middle;
   }
-  table.tasks tbody tr:hover td { background: #14304A; }
-  table.tasks tbody tr.row-new td { background: #102A20; }
+  table.tasks tbody tr:hover td { background: #F0F6F9; }
+  table.tasks tbody tr.row-new td { background: #EBF6EF; }
   table.tasks input[type=text], table.tasks input[type=number], table.tasks input[type=date], table.tasks select {
     width: 100%;
     background: transparent;
@@ -319,7 +442,7 @@
   table.tasks input:hover, table.tasks select:hover { border-color: var(--line); }
   table.tasks input:focus, table.tasks select:focus {
     border-color: var(--cyan);
-    background: #0E2236;
+    background: #FFFFFF;
     outline: none;
   }
   .col-id { width: 70px; font-family: var(--mono); color: var(--text-dim); }
@@ -335,9 +458,9 @@
     letter-spacing: 0.04em;
     padding: 2px 7px;
   }
-  .status-pill.complete { color: var(--green); border: 1px solid #2A4F3A; }
+  .status-pill.complete { color: var(--green); border: 1px solid #BCE0C9; }
   .status-pill.pending  { color: var(--cyan); border: 1px solid var(--cyan-dim); }
-  .status-pill.overdue  { color: var(--red); border: 1px solid #6B3531; }
+  .status-pill.overdue  { color: var(--red); border: 1px solid #E2B3AC; }
   .row-dirty td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
 
   .table-footer {
@@ -358,7 +481,7 @@
     text-align: center;
     border: 1px dashed var(--line);
   }
-  .msg.error { color: var(--red); border-color: #6B3531; }
+  .msg.error { color: var(--red); border-color: #E2B3AC; }
 
   footer.page {
     margin-top: 30px;
@@ -367,6 +490,107 @@
     font-size: 10.5px;
     color: var(--text-faint);
   }
+
+  /* ── ALCOHOL LOG ───────────────────────────────────── */
+  .alcohol-panel {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 14px 16px;
+  }
+  .drink-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .drink-field { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+  .drink-field.narrow { min-width: 90px; }
+  .drink-field label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .drink-field input, .drink-field select {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 7px 8px;
+    border-radius: 2px;
+  }
+  .drink-field input:focus, .drink-field select:focus {
+    border-color: var(--cyan);
+    outline: none;
+  }
+
+  /* ── TAB BAR ───────────────────────────────────────── */
+  .tabbar {
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--line);
+    background: var(--line);
+    margin-bottom: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    border: none;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .tab-btn:hover { background: #E4EFF4; color: var(--text); }
+  .tab-btn.active {
+    background: var(--panel);
+    color: var(--cyan);
+    box-shadow: inset 0 -2px 0 var(--cyan);
+  }
+  .tab-panel {
+    display: none;
+    border: 1px solid var(--line);
+    border-top: none;
+    padding: 18px;
+    background: #F7F9FB;
+  }
+  .tab-panel.active { display: block; }
+  .tab-panel .section-label:first-child { margin-top: 0; }
+
+  /* ── WATER LOG ─────────────────────────────────────── */
+  .water-readout { text-align: center; padding: 10px 0 4px; }
+  .water-total {
+    font-family: var(--mono);
+    font-size: 40px;
+    font-weight: 700;
+    color: var(--cyan);
+  }
+  .water-total .tunit { font-size: 16px; color: var(--text-faint); margin-left: 4px; }
+  .water-goal-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .water-bar-track {
+    max-width: 360px;
+    margin: 14px auto 0;
+    height: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+  }
+  .water-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--cyan);
+    transition: width 0.6s ease;
+  }
+  @media (prefers-reduced-motion: reduce) { .water-bar-fill { transition: none; } }
 
   ::-webkit-scrollbar { height: 8px; }
   ::-webkit-scrollbar-thumb { background: var(--line); }
@@ -378,9 +602,15 @@
 <div class="wrap">
 
   <div class="statusbar">
-    <div>
-      <div class="wordmark">BUILDER<span>OS</span></div>
-      <div class="tagline" id="tagline">I build myself. I build systems. I build people.</div>
+    <div class="identity-block">
+      <div class="identity-portrait">
+        <img id="avatarImg" src="assets/avatars/stage1.png" alt="Builder avatar" onerror="this.style.display='none'" />
+      </div>
+      <div class="identity-text">
+        <div class="wordmark">BUILDER<span>OS</span></div>
+        <div class="tagline" id="tagline">I build myself. I build systems. I build people.</div>
+        <div class="boot-line" id="bootStatus">INITIALIZING</div>
+      </div>
     </div>
     <div class="status-right">
       <div class="level-badge">
@@ -395,6 +625,13 @@
     </div>
   </div>
 
+  <div class="tabbar" role="tablist">
+    <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true" type="button">Dashboard</button>
+    <button class="tab-btn" data-tab="alcohol" role="tab" aria-selected="false" type="button">Log Alcohol</button>
+    <button class="tab-btn" data-tab="water" role="tab" aria-selected="false" type="button">Log Water</button>
+  </div>
+
+  <div id="tab-dashboard" class="tab-panel active">
   <div class="section-label">Pillar Status</div>
   <div class="gauge-panel" id="gaugePanel"></div>
 
@@ -408,6 +645,18 @@
   <div class="section-label">Health Telemetry — Today</div>
   <div class="telemetry-grid" id="telemetryGrid">
     <div class="msg" style="grid-column:1/-1;">Loading…</div>
+  </div>
+
+  <div class="section-label">Consistency — Last 8 Weeks</div>
+  <div class="heatmap-wrap">
+    <div id="heatmapGrid"><div class="msg">Loading…</div></div>
+    <div class="heatmap-legend">
+      <span>LESS</span>
+      <span class="heatmap-cell c0"></span>
+      <span class="heatmap-cell c1"></span>
+      <span class="heatmap-cell c2"></span>
+      <span>MORE</span>
+    </div>
   </div>
 
   <div class="section-label">Work Order Log — Tasks</div>
@@ -437,6 +686,73 @@
     <button class="btn small" id="addTaskBtn" type="button">+ Add Task</button>
     <span class="sync-info" id="taskCount"></span>
   </div>
+  </div><!-- /tab-dashboard -->
+
+  <div id="tab-alcohol" class="tab-panel">
+  <div class="section-label">Alcohol Log — Last 7 Days</div>
+  <div class="alcohol-panel">
+    <div class="drink-form" id="drinkForm">
+      <div class="drink-field">
+        <label>Drink type</label>
+        <input type="text" id="drinkType" list="drinkTypeOptions" placeholder="e.g. Beer" />
+      </div>
+      <div class="drink-field narrow">
+        <label>Volume (ml)</label>
+        <input type="number" id="drinkVolume" placeholder="330" />
+      </div>
+      <div class="drink-field narrow">
+        <label>ABV %</label>
+        <input type="number" id="drinkAbv" placeholder="5.0" step="0.1" />
+      </div>
+      <div class="drink-field">
+        <label>Session</label>
+        <select id="drinkSession">
+          <option value="NEW">Start new session</option>
+        </select>
+      </div>
+      <button class="btn confirm" id="logDrinkBtn" type="button">+ Log Drink</button>
+    </div>
+    <datalist id="drinkTypeOptions">
+      <option value="Beer"><option value="Wine"><option value="Spirit">
+      <option value="Cocktail"><option value="Cider"><option value="Other">
+    </datalist>
+
+    <div class="table-wrap" style="margin-top:14px;">
+      <table class="tasks" id="alcoholTable">
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th>Vol (ml)</th><th>ABV%</th>
+            <th>Units</th><th>Running Units</th><th>Peak BAC</th><th>REC Penalty</th>
+          </tr>
+        </thead>
+        <tbody id="alcoholBody">
+          <tr><td colspan="8" class="msg">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  </div><!-- /tab-alcohol -->
+
+  <div id="tab-water" class="tab-panel">
+  <div class="section-label">Water Log — Today</div>
+  <div class="alcohol-panel">
+    <div class="water-readout">
+      <div class="water-total" id="waterTotal">--<span class="tunit">L</span></div>
+      <div class="water-goal-label">of <span id="waterGoal">2.5</span>L target</div>
+      <div class="water-bar-track"><div class="water-bar-fill" id="waterBarFill"></div></div>
+    </div>
+    <div class="drink-form" style="margin-top:18px;">
+      <button class="btn" data-amount="0.25" type="button">+250ml</button>
+      <button class="btn" data-amount="0.5" type="button">+500ml</button>
+      <button class="btn" data-amount="0.75" type="button">+750ml</button>
+      <div class="drink-field narrow">
+        <label>Custom (L)</label>
+        <input type="number" id="waterCustom" placeholder="0.3" step="0.1" />
+      </div>
+      <button class="btn confirm" id="logWaterCustomBtn" type="button">+ Add</button>
+    </div>
+  </div>
+  </div><!-- /tab-water -->
 
   <datalist id="domainOptions">
     <option value="SCHOOL"><option value="WORK"><option value="HUSTLE">
@@ -450,48 +766,55 @@
     <option value="PENDING"><option value="COMPLETE"><option value="OVERDUE"><option value="CANCELLED">
   </datalist>
 
-  <footer class="page">BUILDER OS · v1.0 · data via Google Apps Script</footer>
+  <footer class="page">BUILDER OS · v1.0 · data via Google Apps Script · <a href="builder_os_mobile.html">Mobile view →</a></footer>
 </div>
 
+<script src="api.js"></script>
 <script>
 // ============================================================
-// CONFIG — update this if you redeploy the Apps Script (Edit →
-// New version → Deploy keeps this URL the same; only a brand
-// new deployment changes it).
+// Desktop-only logic from here down. Shared API helpers,
+// STAT_KEYS, and AVATAR_STAGES now live in api.js.
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZKD79oImowJl0swveHiba5VYWxzPUBHWg1wvzd48dhoWxqnT0npKaM6koHsm_KkSfyA/exec';
 
-const STAT_KEYS = [
-  { key: 'str', label: 'STR', decayKey: 'STR-DECAY' },
-  { key: 'end', label: 'END', decayKey: 'END-DECAY' },
-  { key: 'rec', label: 'REC', decayKey: null },
-  { key: 'int', label: 'INT', decayKey: 'INT-DECAY' },
-  { key: 'eq',  label: 'EQ',  decayKey: 'EQ-DECAY'  },
-  { key: 'sov', label: 'SOV', decayKey: 'SOV-DECAY' },
+function applyAvatar(level) {
+  const chosen = getAvatarStage(level);
+  const img = document.getElementById('avatarImg');
+  if (img.dataset.current !== chosen.file) {
+    img.src = chosen.file;
+    img.dataset.current = chosen.file;
+  }
+}
+
+// ── BOOT SEQUENCE ───────────────────────────────────────────
+const BOOT_MESSAGES = [
+  'INITIALIZING BUILDER OS',
+  'ESTABLISHING UPLINK',
+  'SYNCING CHARACTER DATA',
+  'PULLING TASK LOG',
+  'CALCULATING DECAY',
 ];
+let bootInterval = null;
+
+function startBootSequence() {
+  document.body.classList.add('is-loading');
+  const el = document.getElementById('bootStatus');
+  let i = 0;
+  el.textContent = BOOT_MESSAGES[0];
+  clearInterval(bootInterval);
+  bootInterval = setInterval(() => {
+    i = (i + 1) % BOOT_MESSAGES.length;
+    el.textContent = BOOT_MESSAGES[i];
+  }, 550);
+}
+
+function stopBootSequence() {
+  clearInterval(bootInterval);
+  bootInterval = null;
+  document.body.classList.remove('is-loading');
+}
 
 let currentTasks = [];
 let dirtyRows = new Set();
-
-// ── API HELPERS ────────────────────────────────────────────
-async function apiGet(action, params) {
-  const url = new URL(APPS_SCRIPT_URL);
-  url.searchParams.set('action', action);
-  if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
-  const res = await fetch(url.toString());
-  return res.json();
-}
-
-// text/plain content-type avoids a CORS preflight against the Apps
-// Script endpoint — doPost still parses the body as JSON regardless.
-async function apiPost(action, body) {
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, ...body }),
-  });
-  return res.json();
-}
 
 // ── GAUGE RENDERING ────────────────────────────────────────
 function gaugeSVG(value, color) {
@@ -502,11 +825,11 @@ function gaugeSVG(value, color) {
     const a = (-120 + (i / 10) * 240) * Math.PI / 180;
     const x1 = 60 + 46 * Math.sin(a), y1 = 60 - 46 * Math.cos(a);
     const x2 = 60 + 52 * Math.sin(a), y2 = 60 - 52 * Math.cos(a);
-    ticks.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#2E5573" stroke-width="1.5"/>`);
+    ticks.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#C7D1DA" stroke-width="1.5"/>`);
   }
   return `
   <svg width="120" height="92" viewBox="0 0 120 78">
-    <circle cx="60" cy="60" r="52" fill="none" stroke="#1F3F58" stroke-width="1"/>
+    <circle cx="60" cy="60" r="52" fill="none" stroke="#D7DEE6" stroke-width="1"/>
     ${ticks.join('')}
     <line class="gauge-needle" x1="60" y1="60" x2="60" y2="20"
           stroke="${color}" stroke-width="2.5" stroke-linecap="round"
@@ -515,7 +838,29 @@ function gaugeSVG(value, color) {
   </svg>`;
 }
 
-function renderGauges(stats, decayFlags) {
+// ── SPARKLINE RENDERING ─────────────────────────────────────
+function sparklineSVG(history, key, color) {
+  if (!history || !history.length) return '';
+  const vals = history.map(h => Number(h[key]) || 0);
+  const w = 140, h = 26;
+  const max = 100, min = 0;
+  const step = vals.length > 1 ? w / (vals.length - 1) : 0;
+  const pts = vals.map((v, i) => {
+    const x = i * step;
+    const y = h - ((Math.max(min, Math.min(max, v)) - min) / (max - min)) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const last = vals[vals.length - 1];
+  const lastX = (vals.length - 1) * step;
+  const lastY = h - ((Math.max(min, Math.min(max, last)) - min) / (max - min)) * h;
+  return `
+  <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2" fill="${color}"/>
+  </svg>`;
+}
+
+function renderGauges(stats, decayFlags, history) {
   const panel = document.getElementById('gaugePanel');
   if (!stats) {
     panel.innerHTML = '<div class="msg" style="grid-column:1/-1;">No stat history yet — run dailyRecalc() or check in once.</div>';
@@ -526,17 +871,54 @@ function renderGauges(stats, decayFlags) {
     const val = stats[s.key];
     const isDecaying = s.decayKey && flags.includes(s.decayKey);
     const isCritical = Number(val) < 20;
-    let cellClass = 'flag-ok', color = '#E7EEF5';
-    if (isCritical) { cellClass = 'flag-critical'; color = '#D9534F'; }
-    else if (isDecaying) { cellClass = 'flag-decay'; color = '#E8A33D'; }
+    let cellClass = 'flag-ok', color = '#1B2733';
+    if (isCritical) { cellClass = 'flag-critical'; color = '#C0392B'; }
+    else if (isDecaying) { cellClass = 'flag-decay'; color = '#B8721A'; }
     const display = (val === '' || val == null) ? '--' : val;
     return `
       <div class="gauge-cell ${cellClass}">
         ${gaugeSVG(val, color)}
         <div class="gauge-value">${display}</div>
         <div class="gauge-label">${s.label}</div>
+        <div class="gauge-spark">${sparklineSVG(history, s.key, color)}</div>
       </div>`;
   }).join('');
+}
+
+// ── CONSISTENCY HEATMAP ──────────────────────────────────────
+const HEATMAP_DOMAINS = ['SCHOOL', 'WORK', 'HUSTLE', 'HEALTH', 'HELP', 'INNER', 'SOV'];
+
+function renderHeatmap(completions) {
+  const container = document.getElementById('heatmapGrid');
+  const days = 56;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dateList = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dateList.push(d.toISOString().substring(0, 10));
+  }
+  const counts = {};
+  HEATMAP_DOMAINS.forEach(dom => { counts[dom] = {}; });
+  (completions || []).forEach(c => {
+    const dom = (c.domain || '').toUpperCase();
+    if (!counts[dom]) counts[dom] = {};
+    const date = String(c.date).substring(0, 10);
+    counts[dom][date] = (counts[dom][date] || 0) + 1;
+  });
+
+  let html = '<div class="heatmap-rows">';
+  HEATMAP_DOMAINS.forEach(dom => {
+    html += `<div class="heatmap-row"><div class="heatmap-domain">${dom}</div><div class="heatmap-cells">`;
+    dateList.forEach(date => {
+      const n = (counts[dom] && counts[dom][date]) || 0;
+      const cls = n === 0 ? 'c0' : (n === 1 ? 'c1' : 'c2');
+      html += `<div class="heatmap-cell ${cls}" title="${dom} · ${date} · ${n} completion${n === 1 ? '' : 's'}"></div>`;
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 function renderAlarms(decayFlags, pillarCap) {
@@ -698,14 +1080,118 @@ function addBlankTaskRow() {
   });
 }
 
+// ── ALCOHOL LOG ─────────────────────────────────────────────
+function renderAlcoholSessions(sessions) {
+  const body = document.getElementById('alcoholBody');
+  const list = sessions || [];
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="8" class="msg">No drinks logged in the last 7 days.</td></tr>';
+  } else {
+    // most recent first
+    const sorted = [...list].sort((a, b) => new Date(b.drink_ts) - new Date(a.drink_ts));
+    body.innerHTML = sorted.map(s => `
+      <tr>
+        <td>${esc(s.date)}</td>
+        <td>${esc(s.drink_type)}</td>
+        <td>${esc(s.volume_ml)}</td>
+        <td>${esc(s.abv_pct)}</td>
+        <td>${esc(s.units)}</td>
+        <td>${esc(s.running_units)}</td>
+        <td>${esc(s.peak_bac)}</td>
+        <td>${esc(s.rec_penalty)}</td>
+      </tr>`).join('');
+  }
+
+  // Populate "continue session" dropdown with open sessions only
+  const sel = document.getElementById('drinkSession');
+  const openSessions = [...new Map(
+    list.filter(s => s.session_close === 'OPEN').map(s => [s.session_id, s])
+  ).values()];
+  sel.innerHTML = '<option value="NEW">Start new session</option>' +
+    openSessions.map(s => `<option value="${esc(s.session_id)}">Continue ${esc(s.session_id)} (opened ${esc(s.session_open)})</option>`).join('');
+}
+
+async function logDrink() {
+  const type = document.getElementById('drinkType').value.trim();
+  const volume = document.getElementById('drinkVolume').value;
+  const abv = document.getElementById('drinkAbv').value;
+  const sessionId = document.getElementById('drinkSession').value;
+
+  if (!type) { alert('Drink type is required.'); return; }
+  if (!volume) { alert('Volume is required.'); return; }
+
+  const btn = document.getElementById('logDrinkBtn');
+  btn.textContent = '...';
+  const result = await apiPost('log_drink', {
+    drink_type: type,
+    volume_ml: Number(volume) || 0,
+    abv_pct: Number(abv) || 0,
+    session_id: sessionId,
+  });
+  btn.textContent = '+ Log Drink';
+
+  if (result.error) { alert('Log failed: ' + result.error); return; }
+
+  document.getElementById('drinkType').value = '';
+  document.getElementById('drinkVolume').value = '';
+  document.getElementById('drinkAbv').value = '';
+  loadAll();
+}
+
+document.getElementById('logDrinkBtn').addEventListener('click', logDrink);
+
+// ── TAB SWITCHING ───────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── WATER LOG ───────────────────────────────────────────────
+const WATER_GOAL_L = 2.5;
+
+function renderWater(health) {
+  const total = health ? Number(health.water) || 0 : 0;
+  document.getElementById('waterTotal').innerHTML = total.toFixed(2) + '<span class="tunit">L</span>';
+  const pct = Math.min(100, (total / WATER_GOAL_L) * 100);
+  document.getElementById('waterBarFill').style.width = pct + '%';
+}
+
+async function logWater(amountLitres) {
+  if (!amountLitres || amountLitres <= 0) { alert('Enter a valid amount.'); return; }
+  const result = await apiPost('log_water', { amount_litres: amountLitres });
+  if (result.error) { alert('Log failed: ' + result.error); return; }
+  loadAll();
+}
+
+document.querySelectorAll('[data-amount]').forEach(btn => {
+  btn.addEventListener('click', () => logWater(Number(btn.dataset.amount)));
+});
+document.getElementById('logWaterCustomBtn').addEventListener('click', () => {
+  const val = Number(document.getElementById('waterCustom').value);
+  logWater(val);
+  document.getElementById('waterCustom').value = '';
+});
+
 // ── MAIN LOAD ───────────────────────────────────────────────
 async function loadAll() {
   document.getElementById('refreshBtn').textContent = '↻ Syncing…';
+  startBootSequence();
   try {
-    const [statsRes, healthRes, tasksRes] = await Promise.all([
+    const [statsRes, healthRes, tasksRes, alcoholRes, trendRes, heatmapRes] = await Promise.all([
       apiGet('today_stats'),
       apiGet('today_health'),
       apiGet('tasks'),
+      apiGet('alcohol_week'),
+      apiGet('stat_trend', { days: 30 }),
+      apiGet('completions_heatmap', { days: 56 }),
     ]);
 
     const stats = statsRes.stats;
@@ -714,22 +1200,28 @@ async function loadAll() {
       document.getElementById('levelTitle').textContent = stats.builder_title || '--';
       document.getElementById('syncDate').textContent = stats.date || '--';
       document.getElementById('syncTime').textContent = stats.calculated_at || '';
-      renderGauges(stats, stats.decay_flags);
+      renderGauges(stats, stats.decay_flags, trendRes.history);
       renderAlarms(stats.decay_flags, stats.pillar_cap);
+      applyAvatar(stats.builder_level);
     } else {
       renderGauges(null);
     }
 
     renderTelemetry(healthRes.health);
+    renderWater(healthRes.health);
+    renderHeatmap(heatmapRes.completions);
 
     currentTasks = (tasksRes.tasks || []).filter(t => t.task_id);
     renderTasks();
+
+    renderAlcoholSessions(alcoholRes.sessions);
 
   } catch (err) {
     document.getElementById('gaugePanel').innerHTML =
       `<div class="msg error" style="grid-column:1/-1;">Could not reach Builder OS backend. Check the connection and try again.</div>`;
     console.error(err);
   } finally {
+    stopBootSequence();
     document.getElementById('refreshBtn').textContent = '↻ Refresh';
   }
 }
