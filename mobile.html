@@ -578,11 +578,20 @@ function esc(v) {
 async function loadAll() {
   startBootSequence();
   try {
-    const [statsRes, healthRes, tasksRes] = await Promise.all([
+    const results = await Promise.allSettled([
       apiGet('today_stats'),
       apiGet('today_health'),
       apiGet('tasks'),
     ]);
+
+    const unwrap = (r, fallback = {}) => r.status === 'fulfilled' ? r.value : fallback;
+    const statsRes  = unwrap(results[0]);
+    const healthRes = unwrap(results[1]);
+    const tasksRes  = unwrap(results[2]);
+
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.warn(`Builder OS mobile: call ${i} failed —`, r.reason);
+    });
 
     const stats = statsRes.stats;
     if (stats) {
