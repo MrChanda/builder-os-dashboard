@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BUILDER OS — Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #EEF1F4;
+    --panel:     #FFFFFF;
+    --panel-2:   #F4F6F9;
+    --line:      #D7DEE6;
+    --line-dim:  #E6EBF0;
+    --cyan:      #0E7EA8;
+    --cyan-dim:  #A9C9D8;
+    --amber:     #B8721A;
+    --red:       #C0392B;
+    --green:     #2E8B57;
+    --text:      #1B2733;
+    --text-dim:  #5C6B7A;
+    --text-faint:#8C99A6;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.45;
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  a { color: var(--cyan); }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 14px 14px 0; }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(27,39,51,0.04);
+  }
+  .statusbar::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--cyan);
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  .wordmark span { color: var(--cyan); }
+  .boot-line {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--cyan);
+    margin-top: 3px;
+    display: none;
+  }
+  .boot-line::after { content: "▌"; margin-left: 2px; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  body.is-loading .boot-line { display: block; }
+  body.is-loading .sync-date { display: none; }
+  .level-badge { text-align: right; }
+  .level-badge .num {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+  }
+  .level-badge .title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .sync-date {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+  .refresh-btn {
+    background: none;
+    border: none;
+    color: var(--cyan);
+    font-size: 18px;
+    padding: 4px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  body.is-loading .refresh-btn { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    body.is-loading .refresh-btn { animation: none; }
+    .boot-line::after { animation: none; }
+  }
+
+  /* ── SECTION LABEL ──────────────────────────────────── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 18px 0 8px;
+  }
+
+  /* ── ALARM STRIP ────────────────────────────────────── */
+  .alarm-strip {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .alarm-strip.nominal { border-color: #BEE3CB; }
+  .alarm-strip.active { border-color: #F0CE99; }
+  .alarm-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .alarm-strip.nominal .alarm-dot { background: var(--green); }
+  .alarm-strip.active .alarm-dot { background: var(--amber); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(184,114,26,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(184,114,26,0); }
+  }
+  .alarm-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .alarm-strip.nominal .alarm-label { color: var(--green); }
+  .alarm-chip {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: #FBF0DC;
+    color: #9A5B12;
+    border: 1px solid #ECCE98;
+    padding: 2px 7px;
+  }
+
+  /* ── STAT GRID ──────────────────────────────────────── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .stat-chip {
+    background: var(--panel);
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .stat-chip .sval {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .stat-chip.flag-ok .sval { color: var(--text); }
+  .stat-chip.flag-decay .sval { color: var(--amber); }
+  .stat-chip.flag-critical .sval { color: var(--red); }
+  .stat-chip .slabel {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+  .stat-bar-track {
+    height: 4px;
+    background: var(--panel-2);
+    margin-top: 6px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .stat-bar-fill { height: 100%; border-radius: 2px; }
+
+  /* ── CARD ───────────────────────────────────────────── */
+  .card {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    padding: 14px;
+  }
+
+  /* ── QUICK LOG TABS ─────────────────────────────────── */
+  .qtabbar {
+    display: flex;
+    gap: 2px;
+    border: 1px solid var(--line);
+    background: var(--line);
+  }
+  .qtab-btn {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--panel-2);
+    color: var(--text-dim);
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+  }
+  .qtab-btn.active { background: var(--panel); color: var(--cyan); box-shadow: inset 0 -2px 0 var(--cyan); }
+  .qtab-panel { display: none; border: 1px solid var(--line); border-top: none; padding: 14px; background: var(--panel); }
+  .qtab-panel.active { display: block; }
+
+  .water-readout { text-align: center; padding: 4px 0 2px; }
+  .water-total { font-family: var(--mono); font-size: 32px; font-weight: 700; color: var(--cyan); }
+  .water-total .tunit { font-size: 14px; color: var(--text-faint); margin-left: 3px; }
+  .water-goal-label { font-size: 10.5px; color: var(--text-dim); margin-top: 2px; }
+  .water-bar-track { height: 7px; background: var(--panel-2); border: 1px solid var(--line); margin-top: 10px; }
+  .water-bar-fill { height: 100%; width: 0%; background: var(--cyan); transition: width 0.5s ease; }
+
+  .quick-btn-row { display: flex; gap: 8px; margin-top: 14px; }
+  .qbtn {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    background: var(--panel-2);
+    border: 1px solid var(--cyan-dim);
+    color: var(--cyan);
+    padding: 13px 6px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .qbtn:active { background: #E4EFF4; }
+  .qbtn.confirm { border-color: var(--green); color: var(--green); }
+
+  .field-row { display: flex; gap: 8px; margin-top: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .field label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .field input, .field select {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 10px 8px;
+    border-radius: 2px;
+  }
+  .field input:focus, .field select:focus { border-color: var(--cyan); outline: none; }
+
+  /* ── TASK LIST ──────────────────────────────────────── */
+  .task-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--line-dim);
+  }
+  .task-row:last-child { border-bottom: none; }
+  .task-domain {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    color: var(--cyan);
+    background: #E4EFF4;
+    border: 1px solid var(--cyan-dim);
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+  .task-name { flex: 1; font-size: 13.5px; min-width: 0; }
+  .task-due { font-family: var(--mono); font-size: 10px; color: var(--text-faint); flex-shrink: 0; }
+  .task-due.overdue { color: var(--red); }
+  .task-done-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 6px 10px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .task-done-btn:active { background: #E8F4EC; }
+  .task-done-btn.done { border-color: var(--line); color: var(--text-faint); cursor: default; }
+
+  .msg {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 16px;
+    text-align: center;
+    border: 1px dashed var(--line);
+  }
+  .msg.error { color: var(--red); border-color: #E2B3AC; }
+
+  footer.page {
+    margin-top: 20px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    padding-bottom: 6px;
+  }
+
+  body.is-loading .stat-grid,
+  body.is-loading .card { animation: skeleton-pulse 1.3s ease-in-out infinite; }
+  @keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) {
+    body.is-loading .stat-grid, body.is-loading .card { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="statusbar">
+    <div>
+      <div class="wordmark">BUILDER<span>OS</span></div>
+      <div class="sync-date" id="syncDate">--</div>
+      <div class="boot-line" id="bootStatus">SYNCING</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="level-badge">
+        <div class="num" id="levelNum">--</div>
+        <div class="title" id="levelTitle">LOADING</div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" type="button" aria-label="Refresh">↻</button>
+    </div>
+  </div>
+
+  <div class="alarm-strip nominal" id="alarmStrip">
+    <span class="alarm-dot"></span>
+    <span class="alarm-label" id="alarmLabel">SYSTEMS NOMINAL</span>
+  </div>
+
+  <div class="section-label">Pillar Status</div>
+  <div class="stat-grid" id="statGrid"></div>
+
+  <div class="section-label">Quick Log</div>
+  <div class="qtabbar" role="tablist">
+    <button class="qtab-btn active" data-qtab="water" type="button">Water</button>
+    <button class="qtab-btn" data-qtab="drink" type="button">Drink</button>
+  </div>
+
+  <div id="qtab-water" class="qtab-panel active">
+    <div class="water-readout">
+      <div class="water-total" id="waterTotal">--<span class="tunit">L</span></div>
+      <div class="water-goal-label">of <span id="waterGoal">2.5</span>L target</div>
+      <div class="water-bar-track"><div class="water-bar-fill" id="waterBarFill"></div></div>
+    </div>
+    <div class="quick-btn-row">
+      <button class="qbtn" data-amount="0.25" type="button">+250ml</button>
+      <button class="qbtn" data-amount="0.5" type="button">+500ml</button>
+      <button class="qbtn" data-amount="0.75" type="button">+750ml</button>
+    </div>
+  </div>
+
+  <div id="qtab-drink" class="qtab-panel">
+    <div class="field-row">
+      <div class="field">
+        <label>Type</label>
+        <input type="text" id="drinkType" placeholder="Beer" />
+      </div>
+      <div class="field">
+        <label>Vol (ml)</label>
+        <input type="number" id="drinkVolume" placeholder="330" />
+      </div>
+      <div class="field">
+        <label>ABV %</label>
+        <input type="number" id="drinkAbv" placeholder="5.0" step="0.1" />
+      </div>
+    </div>
+    <div class="quick-btn-row">
+      <button class="qbtn confirm" id="logDrinkBtn" type="button">+ Log Drink</button>
+    </div>
+  </div>
+
+  <div class="section-label">Today's Tasks</div>
+  <div class="card" style="padding: 4px 14px;">
+    <div id="taskList"><div class="msg">Loading…</div></div>
+  </div>
+
+  <footer class="page">BUILDER OS · mobile · <a href="builder_os_dashboard.html">Full dashboard →</a></footer>
+</div>
+
+<script src="api.js"></script>
+<script>
+// ── BOOT SEQUENCE ───────────────────────────────────────────
+const BOOT_MESSAGES = ['SYNCING', 'PULLING STATS', 'CHECKING TASKS'];
+let bootInterval = null;
+
+function startBootSequence() {
+  document.body.classList.add('is-loading');
+  const el = document.getElementById('bootStatus');
+  let i = 0;
+  el.textContent = BOOT_MESSAGES[0];
+  clearInterval(bootInterval);
+  bootInterval = setInterval(() => {
+    i = (i + 1) % BOOT_MESSAGES.length;
+    el.textContent = BOOT_MESSAGES[i];
+  }, 500);
+}
+function stopBootSequence() {
+  clearInterval(bootInterval);
+  bootInterval = null;
+  document.body.classList.remove('is-loading');
+}
+
+// ── STAT GRID ───────────────────────────────────────────────
+function renderStatGrid(stats, decayFlags) {
+  const grid = document.getElementById('statGrid');
+  if (!stats) {
+    grid.innerHTML = '<div class="msg" style="grid-column:1/-1;">No stat data yet.</div>';
+    return;
+  }
+  const flags = (decayFlags || '').toUpperCase();
+  grid.innerHTML = STAT_KEYS.map(s => {
+    const val = Number(stats[s.key]) || 0;
+    const isDecaying = s.decayKey && flags.includes(s.decayKey);
+    const isCritical = val < 20;
+    let cellClass = 'flag-ok', barColor = 'var(--text-dim)';
+    if (isCritical) { cellClass = 'flag-critical'; barColor = 'var(--red)'; }
+    else if (isDecaying) { cellClass = 'flag-decay'; barColor = 'var(--amber)'; }
+    const display = (stats[s.key] === '' || stats[s.key] == null) ? '--' : stats[s.key];
+    const pct = Math.max(0, Math.min(100, val));
+    return `
+      <div class="stat-chip ${cellClass}">
+        <div class="sval">${display}</div>
+        <div class="slabel">${s.label}</div>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%; background:${barColor};"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function renderAlarms(decayFlags, pillarCap) {
+  const strip = document.getElementById('alarmStrip');
+  const flags = (decayFlags || '').trim();
+  if (!flags && pillarCap !== 'YES') {
+    strip.className = 'alarm-strip nominal';
+    strip.innerHTML = `<span class="alarm-dot"></span><span class="alarm-label">SYSTEMS NOMINAL</span>`;
+    return;
+  }
+  strip.className = 'alarm-strip active';
+  const chips = flags.split(/\s+/).filter(Boolean).map(f => `<span class="alarm-chip">${f}</span>`).join('');
+  strip.innerHTML = `<span class="alarm-dot"></span><span class="alarm-label">ALERT</span>${chips}` +
+    (pillarCap === 'YES' ? '<span class="alarm-chip">PILLAR-CAP</span>' : '');
+}
+
+// ── QUICK LOG TABS ──────────────────────────────────────────
+document.querySelectorAll('.qtab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.qtab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.qtab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('qtab-' + btn.dataset.qtab).classList.add('active');
+  });
+});
+
+// ── WATER ───────────────────────────────────────────────────
+const WATER_GOAL_L = 2.5;
+function renderWater(health) {
+  const total = health ? Number(health.water) || 0 : 0;
+  document.getElementById('waterTotal').innerHTML = total.toFixed(2) + '<span class="tunit">L</span>';
+  const pct = Math.min(100, (total / WATER_GOAL_L) * 100);
+  document.getElementById('waterBarFill').style.width = pct + '%';
+}
+async function logWater(amountLitres) {
+  if (!amountLitres || amountLitres <= 0) return;
+  const result = await apiPost('log_water', { amount_litres: amountLitres });
+  if (result.error) { alert('Log failed: ' + result.error); return; }
+  loadAll();
+}
+document.querySelectorAll('[data-amount]').forEach(btn => {
+  btn.addEventListener('click', () => logWater(Number(btn.dataset.amount)));
+});
+
+// ── DRINK ───────────────────────────────────────────────────
+async function logDrink() {
+  const type = document.getElementById('drinkType').value.trim();
+  const volume = document.getElementById('drinkVolume').value;
+  const abv = document.getElementById('drinkAbv').value;
+  if (!type || !volume) { alert('Type and volume are required.'); return; }
+  const btn = document.getElementById('logDrinkBtn');
+  btn.textContent = '...';
+  const result = await apiPost('log_drink', {
+    drink_type: type,
+    volume_ml: Number(volume) || 0,
+    abv_pct: Number(abv) || 0,
+    session_id: 'NEW',
+  });
+  btn.textContent = '+ Log Drink';
+  if (result.error) { alert('Log failed: ' + result.error); return; }
+  document.getElementById('drinkType').value = '';
+  document.getElementById('drinkVolume').value = '';
+  document.getElementById('drinkAbv').value = '';
+  loadAll();
+}
+document.getElementById('logDrinkBtn').addEventListener('click', logDrink);
+
+// ── TASKS ───────────────────────────────────────────────────
+// Shows pending tasks only, capped to the soonest 6 by due date.
+// "Done" flips TASKS_MASTER status via update_task — same field
+// the desktop Save button edits. This does NOT write a
+// GOAL_COMPLETIONS log row; if your scoring system expects a
+// separate completion-log entry to award points, this button
+// needs a second action wired to it once that's confirmed.
+function renderTasks(tasks) {
+  const list = document.getElementById('taskList');
+  const pending = (tasks || [])
+    .filter(t => t.task_id && (t.status || '').toUpperCase() !== 'COMPLETE' && (t.status || '').toUpperCase() !== 'CANCELLED')
+    .sort((a, b) => new Date(a.due_date || '9999-12-31') - new Date(b.due_date || '9999-12-31'))
+    .slice(0, 6);
+
+  if (!pending.length) {
+    list.innerHTML = '<div class="msg">Nothing pending — clean board.</div>';
+    return;
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  list.innerHTML = pending.map(t => {
+    const due = t.due_date ? String(t.due_date).substring(0,10) : '';
+    const isOverdue = due && new Date(due) < today;
+    return `
+      <div class="task-row" data-task-id="${esc(t.task_id)}">
+        <span class="task-domain">${esc(t.domain)}</span>
+        <span class="task-name">${esc(t.task_name)}</span>
+        <span class="task-due ${isOverdue ? 'overdue' : ''}">${due || ''}</span>
+        <button class="task-done-btn" data-action="done">Done</button>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-action="done"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.task-row');
+      const taskId = row.dataset.taskId;
+      btn.textContent = '...';
+      const result = await apiPost('update_task', { task_id: taskId, status: 'COMPLETE' });
+      if (result.error) { alert('Update failed: ' + result.error); btn.textContent = 'Done'; return; }
+      btn.textContent = '✓';
+      btn.classList.add('done');
+      btn.disabled = true;
+      row.style.opacity = '0.5';
+    });
+  });
+}
+
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/"/g, '&quot;');
+}
+
+// ── MAIN LOAD ───────────────────────────────────────────────
+async function loadAll() {
+  startBootSequence();
+  try {
+    const [statsRes, healthRes, tasksRes] = await Promise.all([
+      apiGet('today_stats'),
+      apiGet('today_health'),
+      apiGet('tasks'),
+    ]);
+
+    const stats = statsRes.stats;
+    if (stats) {
+      document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
+      document.getElementById('levelTitle').textContent = stats.builder_title || '--';
+      document.getElementById('syncDate').textContent = stats.date || '--';
+      renderStatGrid(stats, stats.decay_flags);
+      renderAlarms(stats.decay_flags, stats.pillar_cap);
+    } else {
+      renderStatGrid(null);
+    }
+
+    renderWater(healthRes.health);
+    renderTasks(tasksRes.tasks);
+
+  } catch (err) {
+    document.getElementById('statGrid').innerHTML =
+      `<div class="msg error" style="grid-column:1/-1;">Could not reach Builder OS backend.</div>`;
+    console.error(err);
+  } finally {
+    stopBootSequence();
+  }
+}
+
+document.getElementById('refreshBtn').addEventListener('click', loadAll);
+loadAll();
+</script>
+</body>
+</html>
