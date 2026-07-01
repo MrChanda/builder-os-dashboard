@@ -1,0 +1,16 @@
+{
+  "name": "BUILDER OS",
+  "short_name": "BuilderOS",
+  "description": "Gamified self-improvement status panel — stats, tasks, telemetry.",
+  "start_url": "./mobile.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0F15",
+  "theme_color": "#0A0F15",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
