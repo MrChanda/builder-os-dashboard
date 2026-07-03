@@ -360,28 +360,13 @@
 <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
 <div id="srLive" class="visually-hidden" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script src="api.js"></script>
 <script>
 const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ── TIER MODEL ────────────────────────────────────────────
-   Builder-Index-based tier ladder. Placeholder names/floors —
-   swap in the real Apprentice→Sovereign breakpoints once confirmed.
-   Floors are on the 0–100 Builder Index (mean of the six pillars). */
-const TIERS = [
-  { name:'APPRENTICE', floor:0 },
-  { name:'JOURNEYMAN', floor:20 },
-  { name:'ARCHITECT',  floor:40 },
-  { name:'ENGINEER',   floor:60 },
-  { name:'SOVEREIGN',  floor:80 },
-];
-function nextTierFor(index){
-  let cur = TIERS[0];
-  for (const t of TIERS) if (index >= t.floor) cur = t;
-  const i = TIERS.indexOf(cur);
-  const nxt = TIERS[i+1] || null;
-  return { current:cur, next:nxt, ptsToNext: nxt ? Math.max(0, Math.ceil(nxt.floor - index)) : 0 };
-}
+/* TIER MODEL now lives in api.js (single source of truth,
+   hydrated from the backend CONFIG sheet via hydrateConfig()). */
 
 /* ── THEME ─────────────────────────────────────────────── */
 const THEME_KEY='builderos-theme';
@@ -408,10 +393,15 @@ function showToast(message, type) {
 function announce(m){ const l=document.getElementById('srLive'); if(l){ l.textContent=''; requestAnimationFrame(()=>{ l.textContent=m; }); } }
 
 /* Reward feedback: toast + pulse the affected pillar rings (insight #2/#4) */
-function rewardFeedback(task){
-  const pts = Number(task.points_on_time) || 0;
-  const stats = [task.stat_primary, task.stat_secondary].filter(Boolean);
-  const label = `+${pts} pts` + (stats.length ? ' → ' + stats.join(' · ') : '');
+function rewardFeedback(task, delta){
+  // delta = true awarded row from GOAL_COMPLETIONS (backend Stage 1);
+  // falls back to the task's points_on_time until backend is deployed.
+  const pts = delta ? (Number(delta.points_awarded)||0) + (Number(delta.points_secondary)||0)
+                    : (Number(task.points_on_time) || 0);
+  const stats = delta ? [delta.stat_awarded, delta.stat_secondary].filter(Boolean)
+                      : [task.stat_primary, task.stat_secondary].filter(Boolean);
+  const late = delta && String(delta.on_time).toUpperCase()==='NO' ? ' (late)' : '';
+  const label = `+${pts} pts${late}` + (stats.length ? ' → ' + stats.join(' · ') : '');
   showToast(label, 'reward');
   pulseRings(stats);
 }
@@ -595,7 +585,7 @@ function wireTaskRowEvents(){
       const result=await apiPost('update_task', { task_id: tr.querySelector('.col-id').textContent.trim(), ...vals });
       if(result.error){ showToast('Save failed: '+result.error,'error'); saveBtn.textContent='Save'; return; }
       tr.classList.remove('row-dirty'); saveBtn.textContent='Save';
-      if((vals.status||'').toUpperCase()==='COMPLETE'){ rewardFeedback(vals); } else { showToast('Task saved','success'); }
+      if((vals.status||'').toUpperCase()==='COMPLETE'){ rewardFeedback(vals, result.awarded); } else { showToast('Task saved','success'); }
       loadAll();
     }); }
     const delBtn=tr.querySelector('[data-action="delete"]');
@@ -664,9 +654,9 @@ function formatSheetTime(iso){ if(!iso)return '--'; const d=new Date(iso); if(is
 async function loadAll(){
   startBootSequence();
   try{
-    const results=await Promise.allSettled([apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week'),apiGet('completions_heatmap',{days:56})]);
+    const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week'),apiGet('completions_heatmap',{days:56})]);
     const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb;
-    const statsRes=unwrap(results[0]),healthRes=unwrap(results[1]),tasksRes=unwrap(results[2]),alcoholRes=unwrap(results[3]),heatmapRes=unwrap(results[4]);
+    const statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]),heatmapRes=unwrap(results[5]);
     results.forEach((r,i)=>{ if(r.status==='rejected')console.warn(`Builder OS: API call ${i} failed —`,r.reason); });
     const stats=statsRes.stats;
     if(stats){ document.getElementById('syncTime').textContent=formatSheetTime(stats.calculated_at); renderHero(stats); renderGauges(stats,stats.decay_flags); renderAlarms(stats.decay_flags,stats.pillar_cap); applyAvatar(stats.builder_level); }
@@ -680,7 +670,7 @@ async function loadAll(){
 
 document.getElementById('refreshBtn').addEventListener('click', loadAll);
 document.getElementById('addTaskBtn').addEventListener('click', addBlankTaskRow);
-loadAll();
+AUTH.init(loadAll);
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>

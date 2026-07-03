@@ -274,12 +274,12 @@
 <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
 <div id="srLive" class="visually-hidden" aria-live="polite"></div>
 
+<script src="config.js"></script>
 <script src="api.js"></script>
 <script>
 const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const TIERS=[{name:'APPRENTICE',floor:0},{name:'JOURNEYMAN',floor:20},{name:'ARCHITECT',floor:40},{name:'ENGINEER',floor:60},{name:'SOVEREIGN',floor:80}];
-function nextTierFor(index){ let cur=TIERS[0]; for(const t of TIERS) if(index>=t.floor) cur=t; const i=TIERS.indexOf(cur); const nxt=TIERS[i+1]||null; return { current:cur, next:nxt, ptsToNext: nxt?Math.max(0,Math.ceil(nxt.floor-index)):0 }; }
+/* TIER MODEL now lives in api.js (hydrated from backend CONFIG). */
 
 const THEME_KEY='builderos-theme';
 function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); const m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute('content',t==='light'?'#EAF0F5':'#0A0F15'); const btn=document.getElementById('themeToggle'); if(btn){ btn.setAttribute('aria-pressed',String(t==='dark')); const ic=btn.querySelector('.tt-icon'); if(ic)ic.textContent=t==='light'?'☾':'☀'; } try{localStorage.setItem(THEME_KEY,t);}catch(e){} }
@@ -290,7 +290,7 @@ document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 function showToast(message,type){ announce(message); const region=document.getElementById('toastRegion'); if(!region){console.warn(message);return;} const el=document.createElement('div'); el.className='toast toast-'+(type||'info'); el.setAttribute('role',type==='error'?'alert':'status'); el.textContent=message; region.appendChild(el); requestAnimationFrame(()=>el.classList.add('show')); setTimeout(()=>{el.classList.remove('show'); setTimeout(()=>el.remove(),300);}, type==='error'?5000:3200); }
 function announce(m){ const l=document.getElementById('srLive'); if(l){ l.textContent=''; requestAnimationFrame(()=>{ l.textContent=m; }); } }
 
-function rewardFeedback(task){ const pts=Number(task.points_on_time)||0; const stats=[task.stat_primary,task.stat_secondary].filter(Boolean); showToast(`+${pts} pts`+(stats.length?' → '+stats.join(' · '):''),'reward'); pulseRings(stats); }
+function rewardFeedback(task, delta){ const pts=delta?(Number(delta.points_awarded)||0)+(Number(delta.points_secondary)||0):(Number(task.points_on_time)||0); const stats=delta?[delta.stat_awarded,delta.stat_secondary].filter(Boolean):[task.stat_primary,task.stat_secondary].filter(Boolean); const late=delta&&String(delta.on_time).toUpperCase()==='NO'?' (late)':''; showToast(`+${pts} pts${late}`+(stats.length?' → '+stats.join(' · '):''),'reward'); pulseRings(stats); }
 function pulseRings(labels){ if(prefersReduced)return; (labels||[]).forEach(lbl=>{ const cell=document.querySelector(`.ring-cell[data-stat="${String(lbl).toUpperCase()}"]`); if(cell){ cell.classList.remove('ring-hit'); void cell.offsetWidth; cell.classList.add('ring-hit'); setTimeout(()=>cell.classList.remove('ring-hit'),950); } }); }
 
 let lastLevel=null;
@@ -406,7 +406,7 @@ function renderTasks(tasks){
       const result=await apiPost('update_task',{task_id:taskId,status:'COMPLETE'});
       if(result.error){ showToast('Update failed: '+result.error,'error'); btn.textContent='Done'; return; }
       btn.textContent='✓'; btn.classList.add('done'); btn.disabled=true; row.style.opacity='0.5';
-      if(task) rewardFeedback(task); else showToast('Task marked done','success');
+      if(task) rewardFeedback(task, result.awarded); else showToast('Task marked done','success');
     });
   });
 }
@@ -415,9 +415,9 @@ function esc(v){ if(v===null||v===undefined)return ''; return String(v).replace(
 async function loadAll(){
   startBootSequence();
   try{
-    const results=await Promise.allSettled([apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week')]);
+    const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week')]);
     const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb;
-    const statsRes=unwrap(results[0]),healthRes=unwrap(results[1]),tasksRes=unwrap(results[2]),alcoholRes=unwrap(results[3]);
+    const statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]);
     results.forEach((r,i)=>{ if(r.status==='rejected')console.warn(`Builder OS mobile: call ${i} failed —`,r.reason); });
     const stats=statsRes.stats;
     if(stats){ document.getElementById('syncDate').textContent=stats.date||'--'; renderHero(stats); renderStatGrid(stats,stats.decay_flags); renderAlarms(stats.decay_flags,stats.pillar_cap); }
@@ -428,7 +428,7 @@ async function loadAll(){
 }
 
 document.getElementById('refreshBtn').addEventListener('click', loadAll);
-loadAll();
+AUTH.init(loadAll);
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
 </script>
