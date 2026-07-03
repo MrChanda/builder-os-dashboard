@@ -1,0 +1,7 @@
+# Local/dev artifacts
+node_modules/
+*.log
+.DS_Store
+# NOTE: config.js is intentionally COMMITTED in personal forks
+# (GitHub Pages serves the repo as-is). The upstream template repo
+# should delete config.js and ship only config.example.js.
