@@ -374,8 +374,8 @@ function initBottomNav(){
 }
 initBottomNav();
 
-const WATER_GOAL_L=2.5;
-function renderWater(health){ const total=health?Number(health.water)||0:0; document.getElementById('waterTotal').innerHTML=total.toFixed(2)+'<span class="tunit">L</span>'; document.getElementById('waterBarFill').style.width=Math.min(100,(total/WATER_GOAL_L)*100)+'%'; }
+let WATER_GOAL_L=2.5; // fallback; overwritten from CONFIG's weight-based 'Water Target (L)' on load
+function renderWater(health){ const total=health?Number(health.water)||0:0; document.getElementById('waterTotal').innerHTML=total.toFixed(2)+'<span class="tunit">L</span>'; const goalEl=document.getElementById('waterGoal'); if(goalEl)goalEl.textContent=WATER_GOAL_L.toFixed(1); document.getElementById('waterBarFill').style.width=Math.min(100,(total/WATER_GOAL_L)*100)+'%'; }
 async function logWater(amountLitres){ if(!amountLitres||amountLitres<=0){ showToast('Enter a valid amount.','error'); return; } const result=await apiPost('log_water',{amount_litres:amountLitres}); if(result.error){ showToast('Log failed: '+result.error,'error'); return; } showToast(`+${amountLitres} L water`,'reward'); loadAll(); }
 document.querySelectorAll('[data-amount]').forEach(btn=>{ btn.addEventListener('click',()=>logWater(Number(btn.dataset.amount))); });
 document.getElementById('logWaterCustomBtn').addEventListener('click',()=>{ const i=document.getElementById('waterCustom'); logWater(Number(i.value)); i.value=''; });
@@ -417,6 +417,8 @@ async function loadAll(){
   try{
     const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week')]);
     const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb;
+    const cfgRes=(results[0].status==='fulfilled')?results[0].value:null;
+    if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l);
     const statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]);
     results.forEach((r,i)=>{ if(r.status==='rejected')console.warn(`Builder OS mobile: call ${i} failed —`,r.reason); });
     const stats=statsRes.stats;

@@ -7,7 +7,9 @@
 
 function handleGetConfig() {
   var cache = CacheService.getScriptCache();
-  var hit = cache.get('builder_config_v1');
+  // v6.4: cache key bumped v1 -> v2 so the water-target fix propagates
+  // immediately instead of waiting out a stale 10-min entry.
+  var hit = cache.get('builder_config_v2');
   if (hit) return JSON.parse(hit);
 
   var sh = SpreadsheetApp.getActive().getSheetByName('CONFIG');
@@ -37,14 +39,22 @@ function handleGetConfig() {
     pillar_scale: 100,
     targets: {
       steps: n(kv['Steps Daily Target'], 8000),
-      water_l: n(kv['Water Daily Target (L)'], 1.7),
+      // v6.4 (spec s1 item 6, resolved): 'Water Daily Target (L)' on the
+      // CONFIG sheet is '=B9' -- it reads HEIGHT (1.7 m) as litres. The
+      // "flat 1.7" was never a designed target; it's a broken cell ref.
+      // The weight-calculated 'Water Target (L)' (=B8*0.033, currently
+      // ~2.74 L at 83 kg) is the intended model and is now preferred,
+      // with the old key kept only as a fallback chain. Recommended
+      // sheet cleanup (manual, optional): delete the 'Water Daily
+      // Target (L)' row or point it at the calculated one.
+      water_l: n(kv['Water Target (L)'], n(kv['Water Daily Target (L)'], 2.5)),
       sleep_hrs: n(kv['Sleep Duration Target (hrs)'], 7.5),
       active_kcal: n(kv['Active Energy Target (kcal)'], 500),
       stand_hours: n(kv['Stand Hours Target'], 8)
     },
     _cached_at: new Date().toISOString()
   };
-  cache.put('builder_config_v1', JSON.stringify(out), 600); // 10 min
+  cache.put('builder_config_v2', JSON.stringify(out), 600); // 10 min
   return out;
 }
 
