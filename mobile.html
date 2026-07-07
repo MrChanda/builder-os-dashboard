@@ -163,6 +163,15 @@
   .alc-units { font-family:var(--mono); font-size:12px; color:var(--cyan); flex-shrink:0; }
 
   .msg { font-family:var(--mono); font-size:11px; color:var(--text-dim); padding:var(--s4); text-align:center; }
+  .task-filter { display:flex; gap:var(--s2); margin-bottom:var(--s2); }
+  .task-filter input[type=search] { flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); color:var(--text); font-size:var(--fs-input, 15px); padding:0 12px; min-height:var(--tap); border-radius:var(--r-pill); }
+  .task-filter input[type=search]::placeholder { color:var(--text-faint); }
+  .task-filter select { flex:0 1 122px; min-width:96px; background:var(--panel-2); border:1px solid var(--line); color:var(--text); font-size:var(--fs-input, 15px); padding:0 10px; min-height:var(--tap); border-radius:var(--r-pill); }
+  .task-filter input:focus, .task-filter select:focus { border-color:var(--cyan); outline:none; }
+  .task-pager { display:flex; align-items:center; justify-content:space-between; gap:var(--s2); padding:var(--s2) 0 var(--s3); }
+  .task-pager button { font-family:var(--mono); font-size:12px; background:var(--panel-2); border:1px solid var(--line); color:var(--cyan); padding:0 18px; min-height:var(--tap); min-width:88px; border-radius:var(--r-pill); cursor:pointer; }
+  .task-pager button[disabled] { opacity:0.3; color:var(--text-faint); cursor:default; }
+  .task-pager .pg-info { font-family:var(--mono); font-size:11px; color:var(--text-dim); letter-spacing:0.05em; }
   .msg.error { color:var(--red); }
   footer.page { margin-top:var(--s5); text-align:center; font-family:var(--mono); font-size:10px; color:var(--text-faint); padding-bottom:var(--s2); }
 
@@ -225,7 +234,14 @@
     <div class="section-label">Pillar Status</div>
     <div class="ring-grid" id="statGrid"></div>
     <div class="section-label">Today's Tasks</div>
-    <div class="card" style="padding:2px 16px;"><div id="taskList"><div class="msg">Loading…</div></div></div>
+    <div class="task-filter">
+      <input type="search" id="mTaskSearch" placeholder="Filter tasks…" aria-label="Filter tasks" />
+      <select id="mTaskDomain" aria-label="Filter by domain"><option value="">All</option></select>
+    </div>
+    <div class="card" style="padding:2px 16px;">
+      <div id="taskList"><div class="msg">Loading…</div></div>
+      <div class="task-pager" id="mTaskPager" hidden></div>
+    </div>
   </section>
 
   <section id="view-alcohol" class="view" role="tabpanel" aria-labelledby="nav-alcohol" hidden>
@@ -394,15 +410,50 @@ document.getElementById('logDrinkBtn').addEventListener('click', logDrink);
 
 function renderAlcoholList(sessions){ const list=document.getElementById('alcoholList'); const rows=(sessions||[]).slice().sort((a,b)=>new Date(b.drink_ts)-new Date(a.drink_ts)); if(!rows.length){ list.innerHTML='<div class="msg">No drinks logged in the last 7 days.</div>'; return; } list.innerHTML=rows.map(s=>`<div class="alc-row"><span class="alc-date">${esc(String(s.date).substring(5))}</span><span class="alc-type">${esc(s.drink_type)} · ${esc(s.volume_ml)}ml</span><span class="alc-units">${esc(s.units)}u</span></div>`).join(''); }
 
+/* Task list: 6 headline items per page, filterable. State survives re-renders;
+   allTasks refreshes on loadAll. */
+const M_PAGE_SIZE=6;
+let mAllPending=[], mLoadedOnce=false;
+const mFilter={ q:'', domain:'', page:1 };
 function renderTasks(tasks){
+  if(tasks!==undefined){
+    mLoadedOnce=true;
+    mAllPending=(tasks||[]).filter(t=>t.task_id && (t.status||'').toUpperCase()!=='COMPLETE' && (t.status||'').toUpperCase()!=='CANCELLED').sort((a,b)=>new Date(a.due_date||'9999-12-31')-new Date(b.due_date||'9999-12-31'));
+    // hydrate domain filter options once per data load, keep selection
+    const dsel=document.getElementById('mTaskDomain');
+    if(dsel){
+      const doms=[...new Set(mAllPending.map(t=>String(t.domain||'').toUpperCase()).filter(Boolean))].sort();
+      const cur=dsel.value;
+      dsel.innerHTML='<option value="">All</option>'+doms.map(d=>`<option value="${d}">${d}</option>`).join('');
+      if(doms.includes(cur))dsel.value=cur;
+    }
+  }
   const list=document.getElementById('taskList');
-  const pending=(tasks||[]).filter(t=>t.task_id && (t.status||'').toUpperCase()!=='COMPLETE' && (t.status||'').toUpperCase()!=='CANCELLED').sort((a,b)=>new Date(a.due_date||'9999-12-31')-new Date(b.due_date||'9999-12-31')).slice(0,6);
-  if(!pending.length){ list.innerHTML='<div class="msg">Nothing pending — clean board.</div>'; return; }
+  const q=mFilter.q.trim().toLowerCase();
+  let rows=mAllPending;
+  if(q) rows=rows.filter(t=>[t.task_id,t.task_name,t.domain,t.stat_primary,t.stat_secondary].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(mFilter.domain) rows=rows.filter(t=>String(t.domain||'').toUpperCase()===mFilter.domain);
+  const totalPages=Math.max(1,Math.ceil(rows.length/M_PAGE_SIZE));
+  if(mFilter.page>totalPages)mFilter.page=totalPages;
+  if(mFilter.page<1)mFilter.page=1;
+  const pageRows=rows.slice((mFilter.page-1)*M_PAGE_SIZE, mFilter.page*M_PAGE_SIZE);
+  const pager=document.getElementById('mTaskPager');
+  if(!mAllPending.length){ list.innerHTML=mLoadedOnce?'<div class="msg">Nothing pending — clean board.</div>':'<div class="msg error">Couldn\'t load tasks — tap refresh.</div>'; if(pager)pager.hidden=true; return; }
+  if(!rows.length){ list.innerHTML='<div class="msg">No tasks match the filter.</div>'; if(pager)pager.hidden=true; return; }
   const today=new Date(); today.setHours(0,0,0,0);
-  list.innerHTML=pending.map(t=>{ const due=t.due_date?String(t.due_date).substring(0,10):''; const isOverdue=due&&new Date(due)<today; return `<div class="task-row" data-task-id="${esc(t.task_id)}"><span class="task-domain">${esc(t.domain)}</span><span class="task-name">${esc(t.task_name)}</span><span class="task-due ${isOverdue?'overdue':''}">${due||''}</span><button class="task-done-btn" data-action="done" aria-label="Mark ${esc(t.task_name)} done">Done</button></div>`; }).join('');
+  list.innerHTML=pageRows.map(t=>{ const due=t.due_date?String(t.due_date).substring(0,10):''; const isOverdue=due&&/^\d{4}-\d{2}-\d{2}$/.test(due)&&new Date(due)<today; return `<div class="task-row" data-task-id="${esc(t.task_id)}"><span class="task-domain">${esc(t.domain)}</span><span class="task-name">${esc(t.task_name)}</span><span class="task-due ${isOverdue?'overdue':''}">${due||''}</span><button class="task-done-btn" data-action="done" aria-label="Mark ${esc(t.task_name)} done">Done</button></div>`; }).join('');
+  if(pager){
+    if(totalPages<=1){ pager.hidden=true; pager.innerHTML=''; }
+    else {
+      pager.hidden=false;
+      pager.innerHTML=`<button type="button" id="mPgPrev" ${mFilter.page<=1?'disabled':''}>‹ Prev</button><span class="pg-info">${mFilter.page} / ${totalPages}</span><button type="button" id="mPgNext" ${mFilter.page>=totalPages?'disabled':''}>Next ›</button>`;
+      pager.querySelector('#mPgPrev')?.addEventListener('click',()=>{ mFilter.page--; renderTasks(); });
+      pager.querySelector('#mPgNext')?.addEventListener('click',()=>{ mFilter.page++; renderTasks(); });
+    }
+  }
   list.querySelectorAll('[data-action="done"]').forEach((btn,i)=>{
     btn.addEventListener('click', async ()=>{
-      const row=btn.closest('.task-row'); const taskId=row.dataset.taskId; const task=pending.find(p=>String(p.task_id)===String(taskId)); btn.textContent='...';
+      const row=btn.closest('.task-row'); const taskId=row.dataset.taskId; const task=mAllPending.find(p=>String(p.task_id)===String(taskId)); btn.textContent='...';
       const result=await apiPost('update_task',{task_id:taskId,status:'COMPLETE'});
       if(result.error){ showToast('Update failed: '+result.error,'error'); btn.textContent='Done'; return; }
       btn.textContent='✓'; btn.classList.add('done'); btn.disabled=true; row.style.opacity='0.5';
@@ -411,6 +462,12 @@ function renderTasks(tasks){
   });
 }
 function esc(v){ if(v===null||v===undefined)return ''; return String(v).replace(/"/g,'&quot;'); }
+(function wireMobileTaskFilter(){
+  const s=document.getElementById('mTaskSearch'), d=document.getElementById('mTaskDomain');
+  if(!s)return;
+  s.addEventListener('input',()=>{ mFilter.q=s.value; mFilter.page=1; renderTasks(); });
+  d.addEventListener('change',()=>{ mFilter.domain=d.value; mFilter.page=1; renderTasks(); });
+})();
 
 async function loadAll(){
   startBootSequence();
