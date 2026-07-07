@@ -168,6 +168,21 @@
   .alarm-chip { font-family:var(--mono); font-size:11px; letter-spacing:0.04em; background:var(--amber-soft); color:var(--amber); border:1px solid var(--amber-soft); padding:4px 11px; border-radius:var(--r-pill); }
 
   .telemetry-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:var(--s3); }
+  .position-panel { display:flex; flex-direction:column; gap:var(--s3); }
+  .pos-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:var(--s3); }
+  .pos-kpi { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); padding:var(--s3) var(--s4); box-shadow:var(--elev-1); }
+  .pos-kpi .pval { font-family:var(--mono); font-size:var(--fs-xl); font-weight:600; color:var(--cyan); }
+  .pos-kpi .pval.neg { color:var(--red); } .pos-kpi .pval.pos { color:var(--green, #4ade80); }
+  .pos-kpi .pdelta { font-family:var(--mono); font-size:11px; margin-left:6px; }
+  .pos-kpi .pdelta.up { color:var(--green, #4ade80); } .pos-kpi .pdelta.down { color:var(--red); }
+  .pos-kpi .plabel { font-family:var(--mono); font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); margin-top:4px; }
+  .pos-block { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); padding:var(--s3) var(--s4); box-shadow:var(--elev-1); }
+  .pos-block h4 { margin:0 0 6px; font-family:var(--mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; }
+  .pos-block.gains h4 { color:var(--green, #4ade80); } .pos-block.drag h4 { color:var(--red); }
+  .pos-line { font-size:12.5px; color:var(--text); padding:3px 0; display:flex; gap:8px; align-items:baseline; }
+  .pos-line .mono { font-family:var(--mono); font-size:11px; color:var(--text-dim); flex-shrink:0; }
+  .pos-line.link { cursor:pointer; } .pos-line.link:hover .mono { color:var(--cyan); }
+  .pos-empty { font-size:12px; color:var(--text-faint); font-style:italic; }
   .telemetry-cell { background:var(--panel); border:1px solid var(--line); border-radius:var(--r-md); padding:var(--s3) var(--s4); box-shadow:var(--elev-1); }
   .telemetry-cell .tval { font-family:var(--mono); font-size:var(--fs-xl); font-weight:600; color:var(--cyan); }
   .telemetry-cell .tunit { font-size:10px; color:var(--text-faint); margin-left:3px; }
@@ -337,8 +352,8 @@
     <div class="alarm-strip nominal" id="alarmStrip"><span class="alarm-dot"></span><span class="alarm-label" id="alarmLabel">SYSTEMS NOMINAL</span></div>
     <div class="dash-cols">
       <div class="dash-col">
-        <div class="section-label">Health Telemetry — Today</div>
-        <div class="telemetry-grid" id="telemetryGrid"><div class="msg" style="grid-column:1/-1;">Loading…</div></div>
+        <div class="section-label">Position — Today</div>
+        <div class="position-panel" id="positionPanel"><div class="msg">Loading…</div></div>
       </div>
       <div class="dash-col">
         <div class="section-label">Consistency — Last 8 Weeks</div>
@@ -637,6 +652,80 @@ function statusClass(status){
   if(st==='CANCELLED')return 'status-cancelled';
   return '';
 }
+/* ── POSITION — TODAY ────────────────────────────────────
+   Points delta + plain-language read of the week: what moved,
+   what's bleeding. Computed entirely client-side from data the
+   dashboard already fetches (tasks + completions + decay flags). */
+function ymd(d){ return d.toISOString().substring(0,10); }
+function renderPosition(tasks, completions, stats){
+  const panel=document.getElementById('positionPanel');
+  if(!panel)return;
+  const all=(tasks||[]).filter(t=>t.task_id);
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dayMs=86400000;
+  const d7=ymd(new Date(today-6*dayMs)), d14=ymd(new Date(today-13*dayMs)), d8=ymd(new Date(today-7*dayMs)), dT=ymd(today);
+  const inWin=(ds,a,b)=>{ const d=String(ds||'').substring(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(d)&&d>=a&&d<=b; };
+
+  // Earned points: completed tasks by completion_date; effective_pts, fallback points_on_time
+  const ptsOf=t=>{ const e=Number(t.effective_pts); if(!isNaN(e)&&e!==0)return e; return Number(t.points_on_time)||0; };
+  const doneThis=all.filter(t=>inWin(t.completion_date,d7,dT));
+  const donePrev=all.filter(t=>inWin(t.completion_date,d14,d8));
+  const earnedThis=doneThis.reduce((s,t)=>s+ptsOf(t),0);
+  const earnedPrev=donePrev.reduce((s,t)=>s+ptsOf(t),0);
+
+  // Completion momentum per domain (7d vs prior 7d) from the heatmap feed
+  const cThis={}, cPrev={};
+  (completions||[]).forEach(c=>{
+    const dom=String(c.domain||'').toUpperCase(); if(!dom)return;
+    if(inWin(c.date,d7,dT))cThis[dom]=(cThis[dom]||0)+1;
+    else if(inWin(c.date,d14,d8))cPrev[dom]=(cPrev[dom]||0)+1;
+  });
+  const nThis=Object.values(cThis).reduce((a,b)=>a+b,0), nPrev=Object.values(cPrev).reduce((a,b)=>a+b,0);
+
+  // Drag: overdue open tasks, decay bleed, active decay flags
+  const open=all.filter(t=>{ const s=String(t.status||'').toUpperCase(); return !(s==='COMPLETE'||s==='DONE'||s==='CANCELLED'); });
+  const overdue=open.filter(t=>isOverdue(t)||Number(t.days_overdue)>0)
+    .sort((a,b)=>(Number(b.days_overdue)||0)-(Number(a.days_overdue)||0));
+  const bleed=open.reduce((s,t)=>{ const d=Number(t.decay_total); return s+(isNaN(d)?0:Math.min(d,0)); },0); // negatives only
+  const flags=String((stats&&stats.decay_flags)||'').trim().split(/\s+/).filter(Boolean);
+
+  const dPts=earnedThis-earnedPrev, dN=nThis-nPrev;
+  const arrow=v=>v>0?`<span class="pdelta up">▲ +${v}</span>`:v<0?`<span class="pdelta down">▼ ${v}</span>`:`<span class="pdelta">—</span>`;
+  const gainsDomains=Object.entries(cThis).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const wins=doneThis.slice().sort((a,b)=>String(b.completion_date).localeCompare(String(a.completion_date))).slice(0,3);
+
+  const gainsHTML = (wins.length||gainsDomains.length)
+    ? gainsDomains.map(([dom,n])=>{ const prev=cPrev[dom]||0; const trend=n>prev?' ▲':n<prev?' ▼':''; return `<div class="pos-line"><span class="mono">${dom}</span><span>${n} completion${n===1?'':'s'} this week${trend?` <span class="mono">${trend} vs ${prev}</span>`:''}</span></div>`; }).join('')
+      + wins.map(t=>`<div class="pos-line"><span class="mono">+${ptsOf(t)}</span><span>${esc(t.task_name)}</span></div>`).join('')
+    : '<div class="pos-empty">No completions in the last 7 days — the board is waiting.</div>';
+
+  const dragHTML = (overdue.length||flags.length||bleed<0)
+    ? flags.map(f=>{ const stat=f.split('-')[0]; return `<div class="pos-line link" data-stat="${stat}"><span class="mono">${f}</span><span>${stat} has no qualifying activity — decaying now</span></div>`; }).join('')
+      + overdue.slice(0,3).map(t=>{ const dOd=Number(t.days_overdue)||Math.round((today-new Date(String(t.due_date).substring(0,10)))/dayMs); const dec=Math.min(Number(t.decay_total)||0,0); return `<div class="pos-line link" data-task="${esc(t.task_id)}"><span class="mono">${esc(t.task_id)} · ${dOd}d</span><span>${esc(t.task_name)}${dec<0?` <span class="mono">(${dec} pts)</span>`:''}</span></div>`; }).join('')
+      + (overdue.length>3?`<div class="pos-line"><span class="mono">+${overdue.length-3}</span><span>more overdue — filter the log below</span></div>`:'')
+    : '<div class="pos-empty">Nothing overdue, nothing decaying. Clean position.</div>';
+
+  panel.innerHTML=`
+    <div class="pos-kpis">
+      <div class="pos-kpi"><span class="pval ${earnedThis>0?'pos':''}">${earnedThis}</span>${arrow(dPts)}<div class="plabel">Pts — 7 days</div></div>
+      <div class="pos-kpi"><span class="pval">${nThis}</span>${arrow(dN)}<div class="plabel">Completions — 7d</div></div>
+      <div class="pos-kpi"><span class="pval ${bleed<0?'neg':''}">${bleed}</span><div class="plabel">Decay bleed (open)</div></div>
+      <div class="pos-kpi"><span class="pval ${overdue.length?'neg':''}">${overdue.length}</span><div class="plabel">Overdue</div></div>
+    </div>
+    <div class="pos-block gains"><h4>Working</h4>${gainsHTML}</div>
+    <div class="pos-block drag"><h4>Holding you back</h4>${dragHTML}</div>`;
+
+  // drag lines jump into the task log, pre-filtered
+  panel.querySelectorAll('.pos-line.link').forEach(el=>el.addEventListener('click',()=>{
+    const s=document.getElementById('taskSearch'); if(!s)return;
+    const q=el.dataset.task||el.dataset.stat||'';
+    s.value=q; taskFilter.q=q; taskFilter.page=1;
+    const st=document.getElementById('taskStatusFilter');
+    if(el.dataset.task&&st){ st.value=''; taskFilter.status=''; }
+    renderTasks();
+    document.querySelector('.task-toolbar')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }));
+}
 function taskRowHTML(t,idx,isNew){
   const idLabel=isNew?'New task':(t.task_id||'task');
   const plateVal=esc(t.points_late);
@@ -873,8 +962,9 @@ async function loadAll(){
     const stats=statsRes.stats;
     if(stats){ document.getElementById('syncTime').textContent=formatSheetTime(stats.calculated_at); renderHero(stats); renderGauges(stats,stats.decay_flags); renderAlarms(stats.decay_flags,stats.pillar_cap); applyAvatar(stats.builder_level); }
     else { renderGauges(null); }
-    renderTelemetry(healthRes.health); renderWater(healthRes.health); renderHeatmap(heatmapRes.completions);
+    renderWater(healthRes.health); renderHeatmap(heatmapRes.completions);
     currentTasks=(tasksRes.tasks||[]).filter(t=>t.task_id); renderTasks();
+    renderPosition(currentTasks, heatmapRes.completions, statsRes.stats);
     renderAlcoholSessions(alcoholRes.sessions);
   }catch(err){ document.getElementById('gaugePanel').innerHTML=`<div class="msg error" style="grid-column:1/-1;">Could not reach Builder OS backend. Check the connection and try again.</div>`; showToast('Could not reach the backend.','error'); console.error(err); }
   finally{ stopBootSequence(); }
