@@ -178,7 +178,8 @@
 
   .table-wrap { border:1px solid var(--line); border-radius:var(--r-lg) var(--r-lg) 0 0; overflow:hidden; box-shadow:var(--elev-1); }
   .table-scroll { overflow-x:auto; }
-  table.tasks { width:100%; border-collapse:collapse; font-size:12.5px; min-width:920px; }
+  table.tasks { width:100%; border-collapse:collapse; font-size:12.5px; min-width:1380px; } /* v6.4.1: 920px was the 11-col floor; 13 cols compress below ~1380 */
+  .col-task { min-width:170px; }
   table.tasks thead th { text-align:left; font-family:var(--mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); background:var(--panel-2); padding:11px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
   table.tasks tbody td { padding:7px 12px; border-bottom:1px solid var(--line-dim); background:var(--panel); vertical-align:middle; }
   table.tasks tbody tr:hover td { background:var(--panel-2); }
@@ -191,8 +192,8 @@
   table.tasks select { background:var(--panel-2); }
   table.tasks select option { background:var(--panel-2); color:var(--text); }
   .col-id { width:70px; font-family:var(--mono); color:var(--text-dim); }
-  .col-domain,.col-type,.col-stat { width:90px; } .col-points { width:56px; } .col-due { width:140px; } .col-status { width:100px; } .col-actions { width:120px; white-space:nowrap; }
-  .col-decay { width:170px; } /* v6.4 BUG 4: decay_trigger free-text */
+  .col-domain,.col-stat { width:90px; } .col-type { width:116px; } .col-points { width:56px; } .col-due { width:140px; } .col-status { width:116px; } .col-actions { width:120px; white-space:nowrap; }
+  .col-decay { width:200px; } /* v6.4 BUG 4: decay_trigger free-text */
   .id-auto { font-family:var(--mono); font-size:11px; color:var(--text-faint); border:1px dashed var(--line-dim, var(--line)); border-radius:var(--r-pill, 999px); padding:2px 8px; } /* v6.4 BUG 2: generated on save */
   .row-dirty td:first-child { box-shadow:inset 3px 0 0 var(--amber); }
   .table-footer { display:flex; justify-content:space-between; align-items:center; padding:var(--s3) var(--s4); background:var(--panel-2); border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg); }
@@ -303,7 +304,7 @@
     <div class="table-wrap"><div class="table-scroll">
       <table class="tasks">
         <thead><tr>
-          <th class="col-id" scope="col">ID</th><th class="col-domain" scope="col">Domain</th><th scope="col">Task</th>
+          <th class="col-id" scope="col">ID</th><th class="col-domain" scope="col">Domain</th><th class="col-task" scope="col">Task</th>
           <th class="col-type" scope="col">Type</th><th class="col-stat" scope="col">Stat</th><th class="col-stat" scope="col">Stat 2</th>
           <th class="col-points" scope="col">Pts On</th><th class="col-points" scope="col">Pts Late</th><th class="col-due" scope="col">Due</th>
           <th class="col-decay" scope="col">Decay Trigger</th><th class="col-points" scope="col">Decay/Day</th>
