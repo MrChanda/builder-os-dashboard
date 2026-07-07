@@ -71,6 +71,13 @@
   a { color: var(--cyan); text-decoration: none; } a:hover { text-decoration: underline; }
   :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 4px; }
   .wrap { max-width: 1180px; margin: 0 auto; padding: var(--s6) var(--s5) var(--s8); }
+  /* 27" layout: widen the canvas and pair telemetry+heatmap side by side.
+     Below 1500px everything falls back to the existing single-column flow. */
+  @media (min-width:1500px){
+    .wrap { max-width: min(1720px, 94vw); }
+    .dash-cols { display:grid; grid-template-columns:5fr 7fr; gap:var(--s5); align-items:start; }
+    .dash-cols .section-label:first-child { margin-top:0; }
+  }
 
   .statusbar {
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--s5);
@@ -214,6 +221,9 @@
   .task-toolbar input:focus, .task-toolbar select:focus { border-color:var(--cyan); outline:none; box-shadow:0 0 0 3px var(--cyan-soft); }
   .task-toolbar .spacer { flex:0 0 auto; margin-left:auto; }
   .row-dirty td:first-child { box-shadow:inset 3px 0 0 var(--amber); } /* after overdue: editing wins */
+  .task-pager { display:inline-flex; align-items:center; gap:var(--s3); }
+  .task-pager .pg-info { font-family:var(--mono); font-size:11px; color:var(--text-dim); letter-spacing:0.05em; }
+  .task-pager .btn[disabled] { opacity:0.35; cursor:default; }
   .table-footer { display:flex; justify-content:space-between; align-items:center; padding:var(--s3) var(--s4); background:var(--panel-2); border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg); }
 
   @media print { /* UX 5: PDF export was clipping Status/Action and truncating every cell */
@@ -325,12 +335,18 @@
     <div class="section-label">Pillar Status</div>
     <div class="ring-grid" id="gaugePanel"></div>
     <div class="alarm-strip nominal" id="alarmStrip"><span class="alarm-dot"></span><span class="alarm-label" id="alarmLabel">SYSTEMS NOMINAL</span></div>
-    <div class="section-label">Health Telemetry — Today</div>
-    <div class="telemetry-grid" id="telemetryGrid"><div class="msg" style="grid-column:1/-1;">Loading…</div></div>
-    <div class="section-label">Consistency — Last 8 Weeks</div>
-    <div class="heatmap-wrap">
-      <div id="heatmapGrid"><div class="msg">Loading…</div></div>
-      <div class="heatmap-legend"><span>LESS</span><span class="heatmap-cell c0"></span><span class="heatmap-cell c1"></span><span class="heatmap-cell c2"></span><span>MORE</span></div>
+    <div class="dash-cols">
+      <div class="dash-col">
+        <div class="section-label">Health Telemetry — Today</div>
+        <div class="telemetry-grid" id="telemetryGrid"><div class="msg" style="grid-column:1/-1;">Loading…</div></div>
+      </div>
+      <div class="dash-col">
+        <div class="section-label">Consistency — Last 8 Weeks</div>
+        <div class="heatmap-wrap">
+          <div id="heatmapGrid"><div class="msg">Loading…</div></div>
+          <div class="heatmap-legend"><span>LESS</span><span class="heatmap-cell c0"></span><span class="heatmap-cell c1"></span><span class="heatmap-cell c2"></span><span>MORE</span></div>
+        </div>
+      </div>
     </div>
     <div class="section-label">Work Order Log — Tasks</div>
     <div class="task-toolbar">
@@ -352,7 +368,7 @@
         <tbody id="taskBody"><tr><td colspan="13" class="msg">Loading task log…</td></tr></tbody>
       </table>
     </div></div>
-    <div class="table-footer"><button class="btn small" id="addTaskBtn" type="button">+ Add Task</button><span class="sync-info" id="taskCount"></span></div>
+    <div class="table-footer"><button class="btn small" id="addTaskBtn" type="button">+ Add Task</button><span class="task-pager" id="taskPager"></span><span class="sync-info" id="taskCount"></span></div>
   </div>
 
   <div id="tab-alcohol" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-alcohol" hidden>
@@ -594,7 +610,7 @@ function renderAlarms(decayFlags, pillarCap){
   // UX 7: an alarm you can't act on is a decoration — chip click filters the task log to that stat
   strip.querySelectorAll('.alarm-chip.actionable').forEach(ch=>ch.addEventListener('click',()=>{
     const s=document.getElementById('taskSearch');
-    if(s){ s.value=ch.dataset.stat; taskFilter.q=ch.dataset.stat; renderTasks(); }
+    if(s){ s.value=ch.dataset.stat; taskFilter.q=ch.dataset.stat; taskFilter.page=1; renderTasks(); }
     document.querySelector('.task-toolbar')?.scrollIntoView({behavior:'smooth',block:'start'});
   }));
 }
@@ -678,7 +694,8 @@ function wireTypeDueSwap(tr, idLabel){
   });
 }
 function esc(v){ if(v===null||v===undefined)return ''; return String(v).replace(/"/g,'&quot;'); }
-const taskFilter={ q:'', domain:'', status:'', sort:'sheet' };
+const taskFilter={ q:'', domain:'', status:'', sort:'sheet', page:1 };
+const TASK_PAGE_SIZE=10;
 function visibleTasks(){
   // preserve ORIGINAL index — save/delete key off .col-id but data-idx stays honest
   let rows=currentTasks.map((t,i)=>({t,i}));
@@ -703,12 +720,27 @@ function visibleTasks(){
 function renderTasks(){
   const body=document.getElementById('taskBody');
   const rows=visibleTasks();
+  const totalPages=Math.max(1,Math.ceil(rows.length/TASK_PAGE_SIZE));
+  if(taskFilter.page>totalPages)taskFilter.page=totalPages;   // clamp when a filter shrinks the set
+  if(taskFilter.page<1)taskFilter.page=1;
+  const start=(taskFilter.page-1)*TASK_PAGE_SIZE;
+  const pageRows=rows.slice(start,start+TASK_PAGE_SIZE);
   if(!currentTasks.length){ body.innerHTML='<tr><td colspan="13" class="msg">No tasks yet — add one below.</td></tr>'; }
   else if(!rows.length){ body.innerHTML='<tr><td colspan="13" class="msg">No tasks match the current filter.</td></tr>'; }
-  else { body.innerHTML=rows.map(({t,i})=>taskRowHTML(t,i,false)).join(''); }
+  else { body.innerHTML=pageRows.map(({t,i})=>taskRowHTML(t,i,false)).join(''); }
   const overdueN=currentTasks.filter(isOverdue).length;
   const shown=rows.length===currentTasks.length?currentTasks.length+' tasks':rows.length+' of '+currentTasks.length+' tasks';
   document.getElementById('taskCount').textContent=shown+(overdueN?' · '+overdueN+' overdue':'');
+  // pager
+  const pager=document.getElementById('taskPager');
+  if(pager){
+    if(totalPages<=1){ pager.innerHTML=''; }
+    else {
+      pager.innerHTML=`<button class="btn small" id="pgPrev" type="button" ${taskFilter.page<=1?'disabled':''}>‹ Prev</button><span class="pg-info">Page ${taskFilter.page} / ${totalPages}</span><button class="btn small" id="pgNext" type="button" ${taskFilter.page>=totalPages?'disabled':''}>Next ›</button>`;
+      pager.querySelector('#pgPrev')?.addEventListener('click',()=>{ taskFilter.page--; renderTasks(); });
+      pager.querySelector('#pgNext')?.addEventListener('click',()=>{ taskFilter.page++; renderTasks(); });
+    }
+  }
   // domain filter options from live data, selection preserved
   const domSel=document.getElementById('taskDomainFilter');
   if(domSel){
@@ -723,10 +755,10 @@ function wireTaskToolbar(){
   const s=document.getElementById('taskSearch'), d=document.getElementById('taskDomainFilter'),
         st=document.getElementById('taskStatusFilter'), so=document.getElementById('taskSort');
   if(!s)return;
-  s.addEventListener('input',()=>{ taskFilter.q=s.value; renderTasks(); });
-  d.addEventListener('change',()=>{ taskFilter.domain=d.value; renderTasks(); });
-  st.addEventListener('change',()=>{ taskFilter.status=st.value; renderTasks(); });
-  so.addEventListener('change',()=>{ taskFilter.sort=so.value; renderTasks(); });
+  s.addEventListener('input',()=>{ taskFilter.q=s.value; taskFilter.page=1; renderTasks(); });
+  d.addEventListener('change',()=>{ taskFilter.domain=d.value; taskFilter.page=1; renderTasks(); });
+  st.addEventListener('change',()=>{ taskFilter.status=st.value; taskFilter.page=1; renderTasks(); });
+  so.addEventListener('change',()=>{ taskFilter.sort=so.value; taskFilter.page=1; renderTasks(); });
 }
 function readRowValues(tr){
   const out={};
@@ -773,6 +805,7 @@ function wireTaskRowEvents(){
 function addBlankTaskRow(){
   const body=document.getElementById('taskBody');
   if(body.querySelector('.row-new'))return;
+  // pagination: append lands on whatever page is showing — fine, row is appended to the visible tbody
   // BUG 2: no task_id input any more -- the backend assigns the next
   // domain-prefixed ID atomically (LockService) on save. Domain drives
   // the prefix, so it becomes the required field instead.
