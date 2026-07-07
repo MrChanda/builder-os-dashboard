@@ -76,15 +76,28 @@ function hideAuthOverlay() {
 }
 
 /* ── FETCH WRAPPERS ─────────────────────────────────────── */
-async function apiGet(action, params) {
+/* v6.4 (backlog item): retry-once for transient Apps Script
+   echo-redirect 404s / cold-start hiccups. GETs only — they're
+   idempotent. POSTs are deliberately NOT retried: an add_task whose
+   first attempt actually landed would duplicate the row (with a fresh
+   auto-ID) on retry. If a POST fails ambiguously, refresh and read the
+   sheet-backed state instead. */
+async function apiGet(action, params, _retried) {
   const url = new URL(APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
   if (params) Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
   if (AUTH.enabled && AUTH.token) url.searchParams.set('id_token', AUTH.token);
-  const res = await fetch(url.toString());
-  const data = await res.json();
-  if (data && data.error === 'AUTH') { AUTH.expire(); }
-  return data;
+  try {
+    const res = await fetch(url.toString());
+    if (!res.ok && res.status >= 400 && !_retried) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.error === 'AUTH') { AUTH.expire(); }
+    return data;
+  } catch (err) {
+    if (_retried) throw err;
+    await new Promise(r => setTimeout(r, 600));
+    return apiGet(action, params, true);
+  }
 }
 
 // text/plain content-type avoids a CORS preflight against the Apps

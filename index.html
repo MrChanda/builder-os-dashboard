@@ -192,6 +192,8 @@
   table.tasks select option { background:var(--panel-2); color:var(--text); }
   .col-id { width:70px; font-family:var(--mono); color:var(--text-dim); }
   .col-domain,.col-type,.col-stat { width:90px; } .col-points { width:56px; } .col-due { width:140px; } .col-status { width:100px; } .col-actions { width:120px; white-space:nowrap; }
+  .col-decay { width:170px; } /* v6.4 BUG 4: decay_trigger free-text */
+  .id-auto { font-family:var(--mono); font-size:11px; color:var(--text-faint); border:1px dashed var(--line-dim, var(--line)); border-radius:var(--r-pill, 999px); padding:2px 8px; } /* v6.4 BUG 2: generated on save */
   .row-dirty td:first-child { box-shadow:inset 3px 0 0 var(--amber); }
   .table-footer { display:flex; justify-content:space-between; align-items:center; padding:var(--s3) var(--s4); background:var(--panel-2); border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg); }
 
@@ -304,9 +306,10 @@
           <th class="col-id" scope="col">ID</th><th class="col-domain" scope="col">Domain</th><th scope="col">Task</th>
           <th class="col-type" scope="col">Type</th><th class="col-stat" scope="col">Stat</th><th class="col-stat" scope="col">Stat 2</th>
           <th class="col-points" scope="col">Pts On</th><th class="col-points" scope="col">Pts Late</th><th class="col-due" scope="col">Due</th>
+          <th class="col-decay" scope="col">Decay Trigger</th><th class="col-points" scope="col">Decay/Day</th>
           <th class="col-status" scope="col">Status</th><th class="col-actions" scope="col">Action</th>
         </tr></thead>
-        <tbody id="taskBody"><tr><td colspan="11" class="msg">Loading task log…</td></tr></tbody>
+        <tbody id="taskBody"><tr><td colspan="13" class="msg">Loading task log…</td></tr></tbody>
       </table>
     </div></div>
     <div class="table-footer"><button class="btn small" id="addTaskBtn" type="button">+ Add Task</button><span class="sync-info" id="taskCount"></span></div>
@@ -550,40 +553,91 @@ function renderTelemetry(health){
 }
 
 function taskRowHTML(t,idx,isNew){
-  const dueVal=t.due_date?String(t.due_date).substring(0,10):'';
   const idLabel=isNew?'New task':(t.task_id||'task');
+  const plateVal=esc(t.points_late);
   return `
   <tr data-idx="${idx}" class="${isNew?'row-new':''}">
-    <td class="col-id">${isNew?`<input type="text" data-field="task_id" placeholder="ID" aria-label="Task ID" />`:t.task_id}</td>
+    <td class="col-id">${isNew?`<span class="id-auto" title="ID is generated from the Domain on save">auto</span>`:t.task_id}</td>
     <td class="col-domain"><input type="text" data-field="domain" list="domainOptions" value="${esc(t.domain)}" aria-label="Domain for ${idLabel}" /></td>
     <td><input type="text" data-field="task_name" value="${esc(t.task_name)}" aria-label="Task name for ${idLabel}" /></td>
     <td class="col-type"><select data-field="type" aria-label="Type for ${idLabel}"><option value="RECURRING" ${t.type==='RECURRING'?'selected':''}>RECURRING</option><option value="MILESTONE" ${t.type==='MILESTONE'?'selected':''}>MILESTONE</option></select></td>
     <td class="col-stat"><input type="text" data-field="stat_primary" list="statOptions" value="${esc(t.stat_primary)}" aria-label="Primary stat for ${idLabel}" /></td>
     <td class="col-stat"><input type="text" data-field="stat_secondary" list="statOptions" value="${esc(t.stat_secondary)}" aria-label="Secondary stat for ${idLabel}" /></td>
     <td class="col-points"><input type="number" data-field="points_on_time" value="${esc(t.points_on_time)}" aria-label="Points on time for ${idLabel}" /></td>
-    <td class="col-points"><input type="number" data-field="points_late" value="${esc(t.points_late)}" aria-label="Points late for ${idLabel}" /></td>
-    <td class="col-due"><input type="date" data-field="due_date" value="${dueVal}" aria-label="Due date for ${idLabel}" /></td>
+    <td class="col-points"><input type="number" data-field="points_late" value="${plateVal}" placeholder="75%" title="Auto-tracks 75% of Pts On unless you type a value. Clear it to restore the auto-link." aria-label="Points late for ${idLabel} (auto 75% unless overridden)" /></td>
+    <td class="col-due">${dueCellHTML(t.type, t.due_date, idLabel)}</td>
+    <td class="col-decay"><input type="text" data-field="decay_trigger" value="${esc(t.decay_trigger)}" placeholder="e.g. No session 5+ days" aria-label="Decay trigger for ${idLabel}" /></td>
+    <td class="col-points"><input type="number" data-field="decay_pts_day" value="${esc(t.decay_pts_day)}" aria-label="Decay points per day for ${idLabel}" /></td>
     <td class="col-status"><input type="text" data-field="status" list="statusOptions" value="${esc(t.status)}" aria-label="Status for ${idLabel}" /></td>
     <td class="col-actions"><button class="btn small confirm" data-action="save">${isNew?'Add':'Save'}</button>${isNew?'':'<button class="btn small danger" data-action="delete">Del</button>'}</td>
   </tr>`;
 }
+// BUG 1 fix: the due cell's INPUT WIDGET follows the task Type.
+// RECURRING -> cadence <select> (a date picker here is the exact landmine
+// that wrote Invalid Date into TASKS_MASTER!E). MILESTONE -> date picker.
+const CADENCES=['DAILY','WEEKLY','FORTNIGHTLY','MONTHLY','3X_WEEKLY'];
+function dueCellHTML(type, dueVal, idLabel){
+  const t=String(type||'').toUpperCase();
+  if(t==='RECURRING'){
+    const cur=String(dueVal||'').trim().toUpperCase();
+    const sel=CADENCES.includes(cur)?cur:'WEEKLY'; // sane default; backend guard still validates
+    return `<select data-field="due_date" aria-label="Cadence for ${idLabel}">${CADENCES.map(c=>`<option value="${c}" ${c===sel?'selected':''}>${c}</option>`).join('')}</select>`;
+  }
+  const d=dueVal?String(dueVal).substring(0,10):'';
+  // never try to render a cadence string inside a date input
+  const safe=/^\d{4}-\d{2}-\d{2}$/.test(d)?d:'';
+  return `<input type="date" data-field="due_date" value="${safe}" aria-label="Due date for ${idLabel}" />`;
+}
+// Swap the due cell in place when Type changes. Does NOT try to convert
+// the old value across kinds -- RECURRING defaults to WEEKLY, MILESTONE
+// starts blank for the user to pick.
+function wireTypeDueSwap(tr, idLabel){
+  const typeSel=tr.querySelector('[data-field="type"]');
+  if(!typeSel)return;
+  typeSel.addEventListener('change',()=>{
+    const cell=tr.querySelector('.col-due');
+    cell.innerHTML=dueCellHTML(typeSel.value,'',idLabel);
+    const el=cell.querySelector('[data-field]');
+    el.addEventListener('input',()=>tr.classList.add('row-dirty'));
+    tr.classList.add('row-dirty');
+  });
+}
 function esc(v){ if(v===null||v===undefined)return ''; return String(v).replace(/"/g,'&quot;'); }
 function renderTasks(){
   const body=document.getElementById('taskBody');
-  if(!currentTasks.length){ body.innerHTML='<tr><td colspan="11" class="msg">No tasks yet — add one below.</td></tr>'; }
+  if(!currentTasks.length){ body.innerHTML='<tr><td colspan="13" class="msg">No tasks yet — add one below.</td></tr>'; }
   else { body.innerHTML=currentTasks.map((t,i)=>taskRowHTML(t,i,false)).join(''); }
   document.getElementById('taskCount').textContent=currentTasks.length+' tasks';
   wireTaskRowEvents();
 }
-function readRowValues(tr){ const out={}; tr.querySelectorAll('[data-field]').forEach(el=>{ out[el.dataset.field]=el.value; }); if(out.points_on_time!==undefined)out.points_on_time=Number(out.points_on_time)||0; if(out.points_late!==undefined)out.points_late=Number(out.points_late)||0; return out; }
+function readRowValues(tr){
+  const out={};
+  tr.querySelectorAll('[data-field]').forEach(el=>{ out[el.dataset.field]=el.value; });
+  if(out.points_on_time!==undefined)out.points_on_time=Number(out.points_on_time)||0;
+  if(out.decay_pts_day!==undefined)out.decay_pts_day=Number(out.decay_pts_day)||0;
+  // BUG 3: points_late is only transmitted when the user actually touched
+  // the field this session. Untouched -> key omitted -> the live
+  // =ROUND(H*0.75,0) formula in the sheet survives the save. Touched and
+  // cleared -> empty string -> backend restores the formula. Touched with
+  // a number -> static override (flagged).
+  const plEl=tr.querySelector('[data-field="points_late"]');
+  if(plEl && plEl.dataset.userEdited==='1'){
+    if(plEl.value===''){ out.points_late=''; }
+    else { out.points_late=Number(plEl.value)||0; out.points_late_override=true; }
+  } else {
+    delete out.points_late;
+  }
+  return out;
+}
 function wireTaskRowEvents(){
   document.querySelectorAll('#taskBody tr[data-idx]').forEach(tr=>{
-    tr.querySelectorAll('[data-field]').forEach(el=>{ el.addEventListener('input',()=>tr.classList.add('row-dirty')); });
+    tr.querySelectorAll('[data-field]').forEach(el=>{ el.addEventListener('input',()=>{ tr.classList.add('row-dirty'); if(el.dataset.field==='points_late')el.dataset.userEdited='1'; }); });
+    wireTypeDueSwap(tr, tr.querySelector('.col-id')?.textContent.trim()||'task');
     const saveBtn=tr.querySelector('[data-action="save"]');
     if(saveBtn){ saveBtn.addEventListener('click', async ()=>{
       const vals=readRowValues(tr); saveBtn.textContent='...';
       const result=await apiPost('update_task', { task_id: tr.querySelector('.col-id').textContent.trim(), ...vals });
-      if(result.error){ showToast('Save failed: '+result.error,'error'); saveBtn.textContent='Save'; return; }
+      if(result.error||result.status==='error'){ showToast('Save failed: '+(result.error||'unknown'),'error'); saveBtn.textContent='Save'; return; }
       tr.classList.remove('row-dirty'); saveBtn.textContent='Save';
       if((vals.status||'').toUpperCase()==='COMPLETE'){ rewardFeedback(vals, result.awarded); } else { showToast('Task saved','success'); }
       loadAll();
@@ -593,7 +647,7 @@ function wireTaskRowEvents(){
       if(delBtn.textContent!=='Confirm?'){ delBtn.textContent='Confirm?'; return; }
       const taskId=tr.querySelector('.col-id').textContent.trim();
       const result=await apiPost('delete_task', { task_id: taskId });
-      if(result.error){ showToast('Delete failed: '+result.error,'error'); return; }
+      if(result.error||result.status==='error'){ showToast('Delete failed: '+(result.error||'unknown'),'error'); return; }
       showToast('Task deleted','success'); loadAll();
     }); }
   });
@@ -601,16 +655,22 @@ function wireTaskRowEvents(){
 function addBlankTaskRow(){
   const body=document.getElementById('taskBody');
   if(body.querySelector('.row-new'))return;
-  const blank={task_id:'',domain:'',task_name:'',type:'RECURRING',stat_primary:'',stat_secondary:'',points_on_time:0,points_late:0,due_date:'',status:'PENDING'};
+  // BUG 2: no task_id input any more -- the backend assigns the next
+  // domain-prefixed ID atomically (LockService) on save. Domain drives
+  // the prefix, so it becomes the required field instead.
+  const blank={task_id:'',domain:'',task_name:'',type:'RECURRING',stat_primary:'',stat_secondary:'',points_on_time:0,points_late:'',due_date:'WEEKLY',decay_trigger:'',decay_pts_day:0,status:'PENDING'};
   if(!currentTasks.length)body.innerHTML='';
   body.insertAdjacentHTML('beforeend', taskRowHTML(blank,'new',true));
-  const newRow=body.querySelector('.row-new'); newRow.querySelector('[data-field="task_id"]').focus();
+  const newRow=body.querySelector('.row-new'); newRow.querySelector('[data-field="domain"]').focus();
+  newRow.querySelectorAll('[data-field]').forEach(el=>{ el.addEventListener('input',()=>{ newRow.classList.add('row-dirty'); if(el.dataset.field==='points_late')el.dataset.userEdited='1'; }); });
+  wireTypeDueSwap(newRow,'New task');
   newRow.querySelector('[data-action="save"]').addEventListener('click', async ()=>{
     const vals=readRowValues(newRow);
-    if(!vals.task_id){ showToast('Task ID is required.','error'); return; }
+    if(!vals.domain){ showToast('Domain is required \u2014 it determines the task ID prefix.','error'); return; }
+    const btn=newRow.querySelector('[data-action="save"]'); btn.textContent='...';
     const result=await apiPost('add_task', vals);
-    if(result.error){ showToast('Add failed: '+result.error,'error'); return; }
-    showToast('Task added','success'); loadAll();
+    if(result.error||result.status==='error'){ showToast('Add failed: '+(result.error||'unknown'),'error'); btn.textContent='Add'; return; }
+    showToast('Task '+(result.task_id||'')+' added','success'); loadAll();
   });
 }
 
@@ -643,7 +703,7 @@ function initTabs(rootId){
 }
 initTabs('mainTabs');
 
-const WATER_GOAL_L=2.5;
+let WATER_GOAL_L=2.5; // fallback; hydrateConfig() overwrites from CONFIG's weight-based 'Water Target (L)'
 function renderWater(health){ const total=health?Number(health.water)||0:0; document.getElementById('waterTotal').innerHTML=total.toFixed(2)+'<span class="tunit">L</span>'; document.getElementById('waterBarFill').style.width=Math.min(100,(total/WATER_GOAL_L)*100)+'%'; }
 async function logWater(amountLitres){ if(!amountLitres||amountLitres<=0){ showToast('Enter a valid amount.','error'); return; } const result=await apiPost('log_water', { amount_litres:amountLitres }); if(result.error){ showToast('Log failed: '+result.error,'error'); return; } showToast(`+${amountLitres} L water`,'reward'); loadAll(); }
 document.querySelectorAll('[data-amount]').forEach(btn=>{ btn.addEventListener('click',()=>logWater(Number(btn.dataset.amount))); });
@@ -656,7 +716,8 @@ async function loadAll(){
   try{
     const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week'),apiGet('completions_heatmap',{days:56})]);
     const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb;
-    const statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]),heatmapRes=unwrap(results[5]);
+    const cfgRes=unwrap(results[0],null),statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]),heatmapRes=unwrap(results[5]);
+    if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l);
     results.forEach((r,i)=>{ if(r.status==='rejected')console.warn(`Builder OS: API call ${i} failed —`,r.reason); });
     const stats=statsRes.stats;
     if(stats){ document.getElementById('syncTime').textContent=formatSheetTime(stats.calculated_at); renderHero(stats); renderGauges(stats,stats.decay_flags); renderAlarms(stats.decay_flags,stats.pillar_cap); applyAvatar(stats.builder_level); }

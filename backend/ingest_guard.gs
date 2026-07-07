@@ -134,3 +134,7 @@ function testNormalizeDateKey() {
     Logger.log(v + ' → ' + normalizeDateKey_(v));
   });
 }
+
+function testRepairDryRun() {
+  repairDailyHealthKeys(true);
+}
