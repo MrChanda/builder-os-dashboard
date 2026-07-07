@@ -176,7 +176,7 @@
   .heatmap-cell.c2 { background:var(--heat-2); box-shadow:0 0 8px var(--heat-1); }
   .heatmap-legend { display:flex; align-items:center; gap:6px; margin-top:var(--s3); font-family:var(--mono); font-size:10px; color:var(--text-faint); }
 
-  .table-wrap { border:1px solid var(--line); border-radius:var(--r-lg) var(--r-lg) 0 0; overflow:hidden; box-shadow:var(--elev-1); }
+  .table-wrap { border:1px solid var(--line); border-radius:0 0 0 0; overflow:hidden; box-shadow:var(--elev-1); }
   .table-scroll { overflow-x:auto; }
   table.tasks { width:100%; border-collapse:collapse; font-size:12.5px; min-width:1380px; } /* v6.4.1: 920px was the 11-col floor; 13 cols compress below ~1380 */
   .col-task { min-width:170px; }
@@ -194,10 +194,42 @@
   .col-id { width:70px; font-family:var(--mono); color:var(--text-dim); }
   .col-domain,.col-stat { width:90px; } .col-type { width:116px; } .col-points { width:56px; } .col-due { width:140px; } .col-status { width:116px; } .col-actions { width:120px; white-space:nowrap; }
   .col-decay { width:200px; } /* v6.4 BUG 4: decay_trigger free-text */
+  .ring-cell.flag-nodata .ring-val { color:var(--text-faint); }
+  .ring-flag.nodata { color:var(--text-faint); }
+  .alarm-chip.actionable { cursor:pointer; }
+  .alarm-chip.actionable:hover { border-color:var(--cyan); color:var(--cyan); }
   .id-auto { font-family:var(--mono); font-size:11px; color:var(--text-faint); border:1px dashed var(--line-dim, var(--line)); border-radius:var(--r-pill, 999px); padding:2px 8px; } /* v6.4 BUG 2: generated on save */
-  .row-dirty td:first-child { box-shadow:inset 3px 0 0 var(--amber); }
+  .row-overdue td:first-child { box-shadow:inset 3px 0 0 var(--red); }
+  .row-overdue .col-id { color:var(--red); }
+  input.due-late { color:var(--red) !important; font-weight:600; }
+  input.due-empty { color:var(--text-faint); }
+  tr.row-done td { opacity:0.55; }                     /* UX 10: closed rows recede */
+  tr.row-done td .btn { opacity:1; }
+  input.status-done { color:var(--green, #4ade80); }
+  input.status-cancelled { color:var(--text-faint); text-decoration:line-through; }
+  .task-toolbar { display:flex; gap:var(--s3); align-items:center; flex-wrap:wrap; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-bottom:none; border-radius:var(--r-lg) var(--r-lg) 0 0; }
+  .task-toolbar input[type=search], .task-toolbar select { background:var(--panel); border:1px solid var(--line); color:var(--text); font-family:var(--sans); font-size:12.5px; padding:7px 10px; min-height:34px; border-radius:var(--r-sm); }
+  .task-toolbar input[type=search] { flex:1 1 180px; min-width:140px; }
+  .task-toolbar input[type=search]::placeholder { color:var(--text-faint); }
+  .task-toolbar input:focus, .task-toolbar select:focus { border-color:var(--cyan); outline:none; box-shadow:0 0 0 3px var(--cyan-soft); }
+  .task-toolbar .spacer { flex:0 0 auto; margin-left:auto; }
+  .row-dirty td:first-child { box-shadow:inset 3px 0 0 var(--amber); } /* after overdue: editing wins */
   .table-footer { display:flex; justify-content:space-between; align-items:center; padding:var(--s3) var(--s4); background:var(--panel-2); border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg); }
 
+  @media print { /* UX 5: PDF export was clipping Status/Action and truncating every cell */
+    body { background:#fff; }
+    .tabbar, .hero-actions, .task-toolbar, .col-actions, .table-footer .btn, #addTaskBtn { display:none !important; }
+    table.tasks .col-actions { display:none !important; }
+    .table-scroll { overflow:visible !important; }
+    table.tasks { min-width:0 !important; font-size:9.5px; }
+    table.tasks thead th { padding:5px 6px; white-space:normal; }
+    table.tasks tbody td { padding:3px 6px; }
+    table.tasks input, table.tasks select { border:none !important; padding:0 2px !important; min-height:0 !important; font-size:9.5px !important; appearance:none; -webkit-appearance:none; background:transparent !important; color:#111 !important; }
+    table.tasks input::placeholder { color:transparent !important; } /* placeholders are not data */
+    input.due-empty { color:transparent !important; }
+    .heatmap-cell { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .col-decay { width:auto; }
+  }
   .msg { font-family:var(--mono); font-size:12px; color:var(--text-dim); padding:var(--s5); text-align:center; }
   .msg.error { color:var(--red); }
   footer.page { margin-top:var(--s6); text-align:center; font-family:var(--mono); font-size:10.5px; color:var(--text-faint); }
@@ -301,6 +333,13 @@
       <div class="heatmap-legend"><span>LESS</span><span class="heatmap-cell c0"></span><span class="heatmap-cell c1"></span><span class="heatmap-cell c2"></span><span>MORE</span></div>
     </div>
     <div class="section-label">Work Order Log — Tasks</div>
+    <div class="task-toolbar">
+      <input type="search" id="taskSearch" placeholder="Filter: id, name, domain, stat…" aria-label="Filter tasks" />
+      <select id="taskDomainFilter" aria-label="Filter by domain"><option value="">All domains</option></select>
+      <select id="taskStatusFilter" aria-label="Filter by status"><option value="">All statuses</option><option value="OPEN">Open (not done)</option><option value="PENDING">Pending</option><option value="COMPLETE">Complete</option><option value="CANCELLED">Cancelled</option><option value="OVERDUE">Overdue only</option></select>
+      <select id="taskSort" aria-label="Sort tasks"><option value="sheet">Sheet order</option><option value="overdue">Overdue first</option><option value="due">Due date ↑</option></select>
+      <span class="spacer"><button class="btn small" id="addTaskBtnTop" type="button">+ Add Task</button></span>
+    </div>
     <div class="table-wrap"><div class="table-scroll">
       <table class="tasks">
         <thead><tr>
@@ -477,8 +516,11 @@ function animateRings(root){
 function renderHero(stats){
   const vals=STAT_KEYS.map(s=>Number(stats[s.key])).filter(v=>!isNaN(v));
   const index=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
-  document.getElementById('levelNum').textContent = stats.builder_level ?? '--';
-  document.getElementById('levelTitle').textContent = stats.builder_title || '--';
+  const tierNow=nextTierFor(index).current;
+  // UX 8: '--' beside a computed INDEX read as broken — fall back to the tier the index implies
+  const haveLevel=!(stats.builder_level==null||stats.builder_level==='');
+  document.getElementById('levelNum').textContent = haveLevel ? stats.builder_level : index;
+  document.getElementById('levelTitle').textContent = stats.builder_title || (tierNow?tierNow.name:'--');
   document.getElementById('heroSub').textContent = 'INDEX ' + index;
 
   const tier=nextTierFor(index);
@@ -502,16 +544,18 @@ function renderGauges(stats, decayFlags){
   const flags=(decayFlags||'').toUpperCase();
   panel.innerHTML=STAT_KEYS.map(s=>{
     const val=stats[s.key];
-    const isDecaying=s.decayKey && flags.includes(s.decayKey);
-    const isCritical=Number(val)<20;
-    let cellClass='flag-ok', colorVar='--ring-ok';
-    if(isCritical){ cellClass='flag-critical'; colorVar='--ring-crit'; }
-    else if(isDecaying){ cellClass='flag-decay'; colorVar='--ring-decay'; }
     const numeric = !(val===''||val==null||isNaN(Number(val)));
+    const isDecaying=s.decayKey && flags.includes(s.decayKey);
+    // UX 6: no-data is not "low" — Number(null)===0 was flagging unmeasured stats critical
+    const isCritical=numeric && Number(val)<20;
+    let cellClass='flag-ok', colorVar='--ring-ok';
+    if(!numeric){ cellClass='flag-nodata'; colorVar='--ring-track'; }
+    else if(isCritical){ cellClass='flag-critical'; colorVar='--ring-crit'; }
+    else if(isDecaying){ cellClass='flag-decay'; colorVar='--ring-decay'; }
     const display=numeric?val:'--';
     const centerVal = numeric ? `<span class="ring-val" data-count="${Number(val)}">0</span>` : `<span class="ring-val">--</span>`;
-    const flagMarkup=isCritical?'<div class="ring-flag crit">▼ LOW</div>':isDecaying?'<div class="ring-flag decay">▲ DECAY</div>':'<div class="ring-flag" aria-hidden="true">&nbsp;</div>';
-    const stateWord=isCritical?' — low':isDecaying?' — decaying':'';
+    const flagMarkup=!numeric?'<div class="ring-flag nodata">NO DATA</div>':isCritical?'<div class="ring-flag crit">▼ LOW</div>':isDecaying?'<div class="ring-flag decay">▲ DECAY</div>':'<div class="ring-flag" aria-hidden="true">&nbsp;</div>';
+    const stateWord=!numeric?' — no data yet':isCritical?' — low':isDecaying?' — decaying':'';
     return `
       <div class="ring-cell ${cellClass}" data-stat="${s.label}">
         <div class="ring-wrap">
@@ -542,8 +586,17 @@ function renderAlarms(decayFlags, pillarCap){
   const flags=(decayFlags||'').trim();
   if(!flags && pillarCap!=='YES'){ strip.className='alarm-strip nominal'; label.textContent='SYSTEMS NOMINAL'; return; }
   strip.className='alarm-strip active';
-  const chips=flags.split(/\s+/).filter(Boolean).map(f=>`<span class="alarm-chip">${f}</span>`).join('');
+  const chips=flags.split(/\s+/).filter(Boolean).map(f=>{
+    const stat=f.split('-')[0];
+    return `<button type="button" class="alarm-chip actionable" data-stat="${stat}" title="Show ${stat} tasks in the Work Order Log">${f}</button>`;
+  }).join('');
   strip.innerHTML=`<span class="alarm-dot"></span><span class="alarm-label">ALERT</span>${chips}`+(pillarCap==='YES'?'<span class="alarm-chip">PILLAR-CAP</span>':'');
+  // UX 7: an alarm you can't act on is a decoration — chip click filters the task log to that stat
+  strip.querySelectorAll('.alarm-chip.actionable').forEach(ch=>ch.addEventListener('click',()=>{
+    const s=document.getElementById('taskSearch');
+    if(s){ s.value=ch.dataset.stat; taskFilter.q=ch.dataset.stat; renderTasks(); }
+    document.querySelector('.task-toolbar')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }));
 }
 
 function tcell(val,unit,label){ const display=(val===''||val==null)?'--':val; return `<div class="telemetry-cell"><span class="tval">${display}</span><span class="tunit">${unit||''}</span><div class="tlabel">${label}</div></div>`; }
@@ -553,11 +606,31 @@ function renderTelemetry(health){
   grid.innerHTML=[tcell(health.hrv,'ms','HRV'),tcell(health.resting_hr,'bpm','Resting HR'),tcell(health.sleep_duration,'hr','Sleep'),tcell(health.steps,'','Steps'),tcell(health.active_energy,'kcal','Active Energy'),tcell(health.stand_hours,'hr','Stand Hours'),tcell(health.rec_score,'','REC Score'),tcell(health.mood,'/10','Mood')].join('');
 }
 
+function isOverdue(t){
+  // UX 1: an accountability system that doesn't flag overdue is decorative.
+  const st=String(t.status||'').toUpperCase();
+  if(st==='COMPLETE'||st==='DONE'||st==='CANCELLED')return false;
+  const d=String(t.due_date||'').substring(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return false;
+  const today=new Date(); today.setHours(0,0,0,0);
+  return new Date(d+'T00:00:00') < today;
+}
+function statusClass(status){
+  const st=String(status||'').toUpperCase();
+  if(st==='COMPLETE'||st==='DONE')return 'status-done';
+  if(st==='CANCELLED')return 'status-cancelled';
+  return '';
+}
 function taskRowHTML(t,idx,isNew){
   const idLabel=isNew?'New task':(t.task_id||'task');
   const plateVal=esc(t.points_late);
+  const overdue=!isNew&&isOverdue(t);
+  const st=String(t.status||'').toUpperCase();
+  const done=(st==='COMPLETE'||st==='DONE'||st==='CANCELLED');
+  // UX 4: "75%" placeholder is noise on rows with no on-time points at all
+  const platePh=(t.points_on_time===''||t.points_on_time==null)?'':'75%';
   return `
-  <tr data-idx="${idx}" class="${isNew?'row-new':''}">
+  <tr data-idx="${idx}" class="${isNew?'row-new':''}${overdue?' row-overdue':''}${done&&!isNew?' row-done':''}">
     <td class="col-id">${isNew?`<span class="id-auto" title="ID is generated from the Domain on save">auto</span>`:t.task_id}</td>
     <td class="col-domain"><input type="text" data-field="domain" list="domainOptions" value="${esc(t.domain)}" aria-label="Domain for ${idLabel}" /></td>
     <td><input type="text" data-field="task_name" value="${esc(t.task_name)}" aria-label="Task name for ${idLabel}" /></td>
@@ -565,11 +638,11 @@ function taskRowHTML(t,idx,isNew){
     <td class="col-stat"><input type="text" data-field="stat_primary" list="statOptions" value="${esc(t.stat_primary)}" aria-label="Primary stat for ${idLabel}" /></td>
     <td class="col-stat"><input type="text" data-field="stat_secondary" list="statOptions" value="${esc(t.stat_secondary)}" aria-label="Secondary stat for ${idLabel}" /></td>
     <td class="col-points"><input type="number" data-field="points_on_time" value="${esc(t.points_on_time)}" aria-label="Points on time for ${idLabel}" /></td>
-    <td class="col-points"><input type="number" data-field="points_late" value="${plateVal}" placeholder="75%" title="Auto-tracks 75% of Pts On unless you type a value. Clear it to restore the auto-link." aria-label="Points late for ${idLabel} (auto 75% unless overridden)" /></td>
-    <td class="col-due">${dueCellHTML(t.type, t.due_date, idLabel)}</td>
-    <td class="col-decay"><input type="text" data-field="decay_trigger" value="${esc(t.decay_trigger)}" placeholder="e.g. No session 5+ days" aria-label="Decay trigger for ${idLabel}" /></td>
+    <td class="col-points"><input type="number" data-field="points_late" value="${plateVal}" placeholder="${platePh}" title="Auto-tracks 75% of Pts On unless you type a value. Clear it to restore the auto-link." aria-label="Points late for ${idLabel} (auto 75% unless overridden)" /></td>
+    <td class="col-due">${dueCellHTML(t.type, t.due_date, idLabel, overdue)}</td>
+    <td class="col-decay"><input type="text" data-field="decay_trigger" value="${esc(t.decay_trigger)}" placeholder="add trigger" aria-label="Decay trigger for ${idLabel}" /></td>
     <td class="col-points"><input type="number" data-field="decay_pts_day" value="${esc(t.decay_pts_day)}" aria-label="Decay points per day for ${idLabel}" /></td>
-    <td class="col-status"><input type="text" data-field="status" list="statusOptions" value="${esc(t.status)}" aria-label="Status for ${idLabel}" /></td>
+    <td class="col-status"><input type="text" class="${statusClass(t.status)}" data-field="status" list="statusOptions" value="${esc(t.status)}" aria-label="Status for ${idLabel}" /></td>
     <td class="col-actions"><button class="btn small confirm" data-action="save">${isNew?'Add':'Save'}</button>${isNew?'':'<button class="btn small danger" data-action="delete">Del</button>'}</td>
   </tr>`;
 }
@@ -577,7 +650,7 @@ function taskRowHTML(t,idx,isNew){
 // RECURRING -> cadence <select> (a date picker here is the exact landmine
 // that wrote Invalid Date into TASKS_MASTER!E). MILESTONE -> date picker.
 const CADENCES=['DAILY','WEEKLY','FORTNIGHTLY','MONTHLY','3X_WEEKLY'];
-function dueCellHTML(type, dueVal, idLabel){
+function dueCellHTML(type, dueVal, idLabel, overdue){
   const t=String(type||'').toUpperCase();
   if(t==='RECURRING'){
     const cur=String(dueVal||'').trim().toUpperCase();
@@ -587,7 +660,8 @@ function dueCellHTML(type, dueVal, idLabel){
   const d=dueVal?String(dueVal).substring(0,10):'';
   // never try to render a cadence string inside a date input
   const safe=/^\d{4}-\d{2}-\d{2}$/.test(d)?d:'';
-  return `<input type="date" data-field="due_date" value="${safe}" aria-label="Due date for ${idLabel}" />`;
+  const cls=overdue?'due-late':(safe===''?'due-empty':'');
+  return `<input type="date" class="${cls}" data-field="due_date" value="${safe}" aria-label="Due date for ${idLabel}${overdue?' — overdue':''}" />`;
 }
 // Swap the due cell in place when Type changes. Does NOT try to convert
 // the old value across kinds -- RECURRING defaults to WEEKLY, MILESTONE
@@ -604,12 +678,55 @@ function wireTypeDueSwap(tr, idLabel){
   });
 }
 function esc(v){ if(v===null||v===undefined)return ''; return String(v).replace(/"/g,'&quot;'); }
+const taskFilter={ q:'', domain:'', status:'', sort:'sheet' };
+function visibleTasks(){
+  // preserve ORIGINAL index — save/delete key off .col-id but data-idx stays honest
+  let rows=currentTasks.map((t,i)=>({t,i}));
+  const q=taskFilter.q.trim().toLowerCase();
+  if(q) rows=rows.filter(({t})=>[t.task_id,t.task_name,t.domain,t.stat_primary,t.stat_secondary].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(taskFilter.domain) rows=rows.filter(({t})=>String(t.domain||'').toUpperCase()===taskFilter.domain);
+  if(taskFilter.status){
+    const f=taskFilter.status;
+    rows=rows.filter(({t})=>{
+      const st=String(t.status||'').toUpperCase();
+      if(f==='OPEN') return !(st==='COMPLETE'||st==='DONE'||st==='CANCELLED');
+      if(f==='OVERDUE') return isOverdue(t);
+      if(f==='COMPLETE') return st==='COMPLETE'||st==='DONE';
+      return st===f;
+    });
+  }
+  const dueKey=t=>{ const d=String(t.due_date||'').substring(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:'9999-99-99'; };
+  if(taskFilter.sort==='due') rows.sort((a,b)=>dueKey(a.t).localeCompare(dueKey(b.t)));
+  if(taskFilter.sort==='overdue') rows.sort((a,b)=>(isOverdue(b.t)-isOverdue(a.t))||dueKey(a.t).localeCompare(dueKey(b.t)));
+  return rows;
+}
 function renderTasks(){
   const body=document.getElementById('taskBody');
+  const rows=visibleTasks();
   if(!currentTasks.length){ body.innerHTML='<tr><td colspan="13" class="msg">No tasks yet — add one below.</td></tr>'; }
-  else { body.innerHTML=currentTasks.map((t,i)=>taskRowHTML(t,i,false)).join(''); }
-  document.getElementById('taskCount').textContent=currentTasks.length+' tasks';
+  else if(!rows.length){ body.innerHTML='<tr><td colspan="13" class="msg">No tasks match the current filter.</td></tr>'; }
+  else { body.innerHTML=rows.map(({t,i})=>taskRowHTML(t,i,false)).join(''); }
+  const overdueN=currentTasks.filter(isOverdue).length;
+  const shown=rows.length===currentTasks.length?currentTasks.length+' tasks':rows.length+' of '+currentTasks.length+' tasks';
+  document.getElementById('taskCount').textContent=shown+(overdueN?' · '+overdueN+' overdue':'');
+  // domain filter options from live data, selection preserved
+  const domSel=document.getElementById('taskDomainFilter');
+  if(domSel){
+    const doms=[...new Set(currentTasks.map(t=>String(t.domain||'').toUpperCase()).filter(Boolean))].sort();
+    const cur=domSel.value;
+    domSel.innerHTML='<option value="">All domains</option>'+doms.map(d=>`<option value="${d}">${d}</option>`).join('');
+    if(doms.includes(cur))domSel.value=cur;
+  }
   wireTaskRowEvents();
+}
+function wireTaskToolbar(){
+  const s=document.getElementById('taskSearch'), d=document.getElementById('taskDomainFilter'),
+        st=document.getElementById('taskStatusFilter'), so=document.getElementById('taskSort');
+  if(!s)return;
+  s.addEventListener('input',()=>{ taskFilter.q=s.value; renderTasks(); });
+  d.addEventListener('change',()=>{ taskFilter.domain=d.value; renderTasks(); });
+  st.addEventListener('change',()=>{ taskFilter.status=st.value; renderTasks(); });
+  so.addEventListener('change',()=>{ taskFilter.sort=so.value; renderTasks(); });
 }
 function readRowValues(tr){
   const out={};
@@ -732,6 +849,8 @@ async function loadAll(){
 
 document.getElementById('refreshBtn').addEventListener('click', loadAll);
 document.getElementById('addTaskBtn').addEventListener('click', addBlankTaskRow);
+document.getElementById('addTaskBtnTop')?.addEventListener('click', ()=>{ addBlankTaskRow(); document.querySelector('#taskBody .row-new')?.scrollIntoView({behavior:'smooth',block:'center'}); });
+wireTaskToolbar();
 AUTH.init(loadAll);
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
