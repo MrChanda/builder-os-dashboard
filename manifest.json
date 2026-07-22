@@ -2,7 +2,7 @@
   "name": "BUILDER OS",
   "short_name": "BuilderOS",
   "description": "Gamified self-improvement status panel — stats, tasks, telemetry.",
-  "start_url": "./mobile.html",
+  "start_url": "./index.html",,
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
