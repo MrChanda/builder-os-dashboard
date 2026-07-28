@@ -202,10 +202,36 @@
   @media (prefers-reduced-motion: reduce) { .levelup, .levelup-card { transition:opacity 0.2s ease; transform:none; } }
 
   .visually-hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+
+  /* ── Mood logging ─────────────────────────────────────── */
+  .mood-scale { display:grid; grid-template-columns:repeat(5,1fr); gap:var(--s2); margin:var(--s3) 0; }
+  .mood-btn { height:var(--tap); border-radius:var(--r-md); border:1px solid var(--line); background:var(--panel-2); color:var(--text-dim); font-family:var(--mono); font-size:var(--fs-input); font-weight:600; cursor:pointer; }
+  .mood-btn.selected { background:linear-gradient(180deg, var(--cyan), var(--cyan-2)); color:var(--tab-ink); border-color:var(--cyan); }
+  .mood-today-avg { text-align:center; font-family:var(--mono); padding:var(--s2) 0; }
+  .mood-today-avg .mav-num { font-size:var(--fs-2xl); font-weight:700; color:var(--cyan); text-shadow:0 0 24px var(--num-glow); }
+  .mood-today-avg .mav-unit { font-size:15px; color:var(--text-faint); margin-left:2px; }
+  .mood-today-avg .mav-label { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .mood-spark { display:flex; align-items:flex-end; gap:5px; height:70px; padding:var(--s2) 0; }
+  .mood-spark-day { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; }
+  .mood-spark-day > div { flex:1; display:flex; align-items:flex-end; width:100%; }
+  .mood-spark-bar { width:100%; background:linear-gradient(180deg, var(--cyan), var(--cyan-2)); border-radius:var(--r-sm) var(--r-sm) 0 0; min-height:3px; }
+  .mood-spark-bar.empty { background:var(--panel-3); }
+  .mood-spark-label { font-family:var(--mono); font-size:8.5px; color:var(--text-faint); }
+  .mood-spark-val { font-family:var(--mono); font-size:9px; color:var(--cyan); }
+  .mood-log-row { display:flex; align-items:center; gap:var(--s2); padding:var(--s3) 0; border-bottom:1px solid var(--line-dim); font-size:13px; }
+  .mood-log-row:last-child { border-bottom:none; }
+  .mood-log-time { font-family:var(--mono); font-size:10px; color:var(--text-faint); width:40px; flex-shrink:0; }
+  .mood-log-score { font-family:var(--mono); font-size:15px; font-weight:700; color:var(--cyan); width:26px; flex-shrink:0; }
+  .mood-log-tag { font-family:var(--mono); font-size:9px; color:var(--cyan); background:var(--cyan-soft); border:1px solid var(--cyan-soft); padding:2px 7px; border-radius:var(--r-pill); flex-shrink:0; }
+  .mood-log-note { font-size:12px; color:var(--text-dim); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mood-empty { font-size:11px; color:var(--text-faint); font-style:italic; text-align:center; padding:var(--s3); }
+  /* ── Floating add button ─────────────────────────────── */
+  .fab-add { position:fixed; right:16px; bottom:calc(var(--dock-h) + var(--dock-gap) + var(--safe-b) + 12px); width:56px; height:56px; border-radius:var(--r-pill); border:1px solid var(--cyan); background:linear-gradient(180deg, var(--cyan), var(--cyan-2)); color:var(--tab-ink); font-size:26px; font-weight:600; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 8px 24px var(--cyan-soft), var(--elev-2); z-index:99; }
+  .fab-add:active { transform:scale(1.05); }
+  @media (prefers-reduced-motion: reduce) { .fab-add:active { transform:none; } }
 </style>
 </head>
 <body>
-
 <div class="wrap">
   <div class="hero">
     <div class="hero-top">
@@ -278,6 +304,28 @@
     </div>
   </section>
 
+  <section id="view-mood" class="view" role="tabpanel" aria-labelledby="nav-mood" hidden>
+    <div class="section-label">Mood — Today</div>
+    <div class="card">
+      <div class="mood-today-avg">
+        <div><span class="mav-num" id="moodTodayAvg">--</span><span class="mav-unit">/10</span></div>
+        <div class="mav-label" id="moodTodayCount">no logs yet today</div>
+      </div>
+      <div class="mood-scale" id="moodScale"></div>
+      <div class="field-row">
+        <div class="field"><label for="moodTag">Tag</label><input type="text" id="moodTag" placeholder="post-workout" /></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="moodNote">Note</label><input type="text" id="moodNote" placeholder="optional" /></div>
+      </div>
+      <div class="quick-btn-row"><button class="qbtn confirm" id="logMoodBtn" type="button">+ Log Mood</button></div>
+    </div>
+    <div class="section-label">Last 7 Days</div>
+    <div class="card"><div class="mood-spark" id="moodSpark"><div class="mood-empty">Loading…</div></div></div>
+    <div class="section-label">Today's Entries</div>
+    <div class="card" style="padding:2px 16px;"><div id="moodLogList"><div class="mood-empty">Loading…</div></div></div>
+  </section>
+
   <footer class="page">BUILDER OS · mobile · <a href="index.html">Full dashboard →</a></footer>
 </div>
 
@@ -285,208 +333,148 @@
   <button class="nav-btn active" id="nav-dashboard" role="tab" aria-selected="true" aria-controls="view-dashboard" type="button"><span class="nav-icon" aria-hidden="true">◉</span>Status</button>
   <button class="nav-btn" id="nav-alcohol" role="tab" aria-selected="false" aria-controls="view-alcohol" tabindex="-1" type="button"><span class="nav-icon" aria-hidden="true">◔</span>Alcohol</button>
   <button class="nav-btn" id="nav-water" role="tab" aria-selected="false" aria-controls="view-water" tabindex="-1" type="button"><span class="nav-icon" aria-hidden="true">◇</span>Water</button>
+  <button class="nav-btn" id="nav-mood" role="tab" aria-selected="false" aria-controls="view-mood" tabindex="-1" type="button"><span class="nav-icon" aria-hidden="true">◕</span>Mood</button>
 </nav>
 
 <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="false"></div>
 <div id="srLive" class="visually-hidden" aria-live="polite"></div>
+<button class="fab-add" id="fabAdd" type="button" aria-label="Quick capture a task">+</button>
 
 <script src="config.js"></script>
 <script src="api.js"></script>
 <script>
 const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/* TIER MODEL now lives in api.js (hydrated from backend CONFIG). */
-
+/* ── THEME ─────────────────────────────────────────────── */
 const THEME_KEY='builderos-theme';
-function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); const m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute('content',t==='light'?'#EAF0F5':'#0A0F15'); const btn=document.getElementById('themeToggle'); if(btn){ btn.setAttribute('aria-pressed',String(t==='dark')); const ic=btn.querySelector('.tt-icon'); if(ic)ic.textContent=t==='light'?'☾':'☀'; } try{localStorage.setItem(THEME_KEY,t);}catch(e){} }
-function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme')||'dark'; applyTheme(cur==='dark'?'light':'dark'); }
+function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); const m=document.querySelector('meta[name=theme-color]'); if(m)m.setAttribute('content',t==='light'?'#EAF0F5':'#0A0F15'); const btn=document.getElementById('themeToggle'); if(btn){btn.setAttribute('aria-pressed',String(t==='dark'));const ic=btn.querySelector('.tt-icon');if(ic)ic.textContent=t==='light'?'☾':'☀';} try{localStorage.setItem(THEME_KEY,t);}catch(e){} }
+function toggleTheme(){ const c=document.documentElement.getAttribute('data-theme')||'dark'; applyTheme(c==='dark'?'light':'dark'); }
 applyTheme(document.documentElement.getAttribute('data-theme')||'dark');
-document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+document.getElementById('themeToggle').addEventListener('click',toggleTheme);
 
-function showToast(message,type){ announce(message); const region=document.getElementById('toastRegion'); if(!region){console.warn(message);return;} const el=document.createElement('div'); el.className='toast toast-'+(type||'info'); el.setAttribute('role',type==='error'?'alert':'status'); el.textContent=message; region.appendChild(el); requestAnimationFrame(()=>el.classList.add('show')); setTimeout(()=>{el.classList.remove('show'); setTimeout(()=>el.remove(),300);}, type==='error'?5000:3200); }
-function announce(m){ const l=document.getElementById('srLive'); if(l){ l.textContent=''; requestAnimationFrame(()=>{ l.textContent=m; }); } }
+/* ── TOAST ─────────────────────────────────────────────── */
+function showToast(message,type){ announce(message); const region=document.getElementById('toastRegion'); if(!region){console.warn(message);return;} const el=document.createElement('div'); el.className='toast toast-'+(type||'info'); el.setAttribute('role',type==='error'?'alert':'status'); el.textContent=message; region.appendChild(el); requestAnimationFrame(()=>el.classList.add('show')); setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},type==='error'?5000:3200); }
+function announce(m){ const l=document.getElementById('srLive'); if(l){l.textContent='';requestAnimationFrame(()=>{l.textContent=m;});} }
+function esc(v){ if(v===null||v===undefined)return''; return String(v).replace(/"/g,'&quot;'); }
 
-function rewardFeedback(task, delta){ const pts=delta?(Number(delta.points_awarded)||0)+(Number(delta.points_secondary)||0):(Number(task.points_on_time)||0); const stats=delta?[delta.stat_awarded,delta.stat_secondary].filter(Boolean):[task.stat_primary,task.stat_secondary].filter(Boolean); const late=delta&&String(delta.on_time).toUpperCase()==='NO'?' (late)':''; showToast(`+${pts} pts${late}`+(stats.length?' → '+stats.join(' · '):''),'reward'); pulseRings(stats); }
-function pulseRings(labels){ if(prefersReduced)return; (labels||[]).forEach(lbl=>{ const cell=document.querySelector(`.ring-cell[data-stat="${String(lbl).toUpperCase()}"]`); if(cell){ cell.classList.remove('ring-hit'); void cell.offsetWidth; cell.classList.add('ring-hit'); setTimeout(()=>cell.classList.remove('ring-hit'),950); } }); }
-
+function rewardFeedback(task,delta){ const pts=delta?(Number(delta.points_awarded)||0)+(Number(delta.points_secondary)||0):(Number(task.points_on_time)||0); const stats=delta?[delta.stat_awarded,delta.stat_secondary].filter(Boolean):[task.stat_primary,task.stat_secondary].filter(Boolean); const late=delta&&String(delta.on_time).toUpperCase()==='NO'?' (late)':''; const label=`+${pts} pts${late}`+(stats.length?' → '+stats.join(' · '):''); showToast(label,'reward'); pulseRings(stats); }
+function pulseRings(statLabels){ if(prefersReduced)return; (statLabels||[]).forEach(lbl=>{ const cell=document.querySelector(`.ring-cell[data-stat="${String(lbl).toUpperCase()}"]`); if(cell){cell.classList.remove('ring-hit');void cell.offsetWidth;cell.classList.add('ring-hit');setTimeout(()=>cell.classList.remove('ring-hit'),950);} }); }
 let lastLevel=null;
-function celebrate(title){ const ov=document.createElement('div'); ov.className='levelup'; ov.innerHTML=`<div class="levelup-card"><div class="levelup-k">Level Up</div><div class="levelup-title">${(title||'').toString().replace(/</g,'')}</div></div>`; document.body.appendChild(ov); announce('Level up. New title '+(title||'')); requestAnimationFrame(()=>ov.classList.add('show')); setTimeout(()=>{ ov.classList.remove('show'); setTimeout(()=>ov.remove(),450); },2600); }
+function celebrate(title){ const ov=document.createElement('div');ov.className='levelup';ov.innerHTML=`<div class="levelup-card"><div class="levelup-k">Level Up</div><div class="levelup-title">${(title||'').toString().replace(/</g,'')}</div></div>`;document.body.appendChild(ov);announce('Level up. New title '+(title||''));requestAnimationFrame(()=>ov.classList.add('show'));setTimeout(()=>{ov.classList.remove('show');setTimeout(()=>ov.remove(),450);},2600); }
+function applyAvatar(level){ const c=getAvatarStage(level); }
 
-const BOOT_MESSAGES=['SYNCING','PULLING STATS','CHECKING TASKS']; let bootInterval=null;
-function startBootSequence(){ document.body.classList.add('is-loading'); const el=document.getElementById('bootStatus'); let i=0; el.textContent=BOOT_MESSAGES[0]; clearInterval(bootInterval); bootInterval=setInterval(()=>{ i=(i+1)%BOOT_MESSAGES.length; el.textContent=BOOT_MESSAGES[i]; },500); }
-function stopBootSequence(){ clearInterval(bootInterval); bootInterval=null; document.body.classList.remove('is-loading'); }
+/* ── BOOT ──────────────────────────────────────────────── */
+let bootInterval=null;
+const BOOT_MESSAGES=['SYNCING','READING STATS','LOADING TASKS','CHECKING HEALTH'];
+function startBootSequence(){ document.body.classList.add('is-loading'); const el=document.getElementById('bootStatus'); let i=0; el.textContent=BOOT_MESSAGES[0]; clearInterval(bootInterval); bootInterval=setInterval(()=>{ i=(i+1)%BOOT_MESSAGES.length; el.textContent=BOOT_MESSAGES[i]; },550); }
+function stopBootSequence(){ clearInterval(bootInterval);bootInterval=null;document.body.classList.remove('is-loading'); }
 
-function ringSVG(value,colorVar,size,stroke,ariaLabel,tickAt){
-  const v=Math.max(0,Math.min(100,Number(value)||0)); const r=(size-stroke)/2,cx=size/2,cy=size/2;
-  const circ=2*Math.PI*r, offset=circ*(1-v/100); const safe=(ariaLabel||'ring').replace(/"/g,'');
-  let tick=''; if(tickAt!=null){ const a=(-90+360*(tickAt/100))*Math.PI/180; const r1=r-stroke/2-1,r2=r+stroke/2+1; tick=`<line class="ring-tick" x1="${(cx+r1*Math.cos(a)).toFixed(1)}" y1="${(cy+r1*Math.sin(a)).toFixed(1)}" x2="${(cx+r2*Math.cos(a)).toFixed(1)}" y2="${(cy+r2*Math.sin(a)).toFixed(1)}" stroke-width="2"/>`; }
-  return `
-  <svg class="ring-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${safe}">
-    <title>${safe}</title>
-    <circle class="ring-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${stroke}"/>
-    <circle class="ring-prog" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${circ.toFixed(2)}" data-off="${offset.toFixed(2)}" style="stroke:var(${colorVar}); --glow:var(${colorVar});"/>
-    ${tick}
-  </svg>`;
-}
-function countUp(el,to,dur){ if(isNaN(to))return; if(prefersReduced){ el.textContent=String(to); return; } const start=performance.now(); function tick(now){ const p=Math.min(1,(now-start)/dur); const e=1-Math.pow(1-p,3); el.textContent=String(Math.round(to*e)); if(p<1)requestAnimationFrame(tick); } requestAnimationFrame(tick); }
-function animateRings(root){ const run=()=>{ root.querySelectorAll('.ring-prog').forEach(c=>{ c.style.strokeDashoffset=c.dataset.off; }); root.querySelectorAll('.ring-val[data-count]').forEach(v=>countUp(v,Number(v.dataset.count),850)); }; if(prefersReduced){ run(); } else { requestAnimationFrame(()=>requestAnimationFrame(run)); } }
+function ringSVG(value,colorVar,size,stroke,ariaLabel,tickAt){ const v=Math.max(0,Math.min(100,Number(value)||0)); const r=(size-stroke)/2,cx=size/2,cy=size/2; const circ=2*Math.PI*r,offset=circ*(1-v/100); const safe=(ariaLabel||'ring').replace(/"/g,''); let tick=''; if(tickAt!=null){const a=(-90+360*(tickAt/100))*Math.PI/180;const r1=r-stroke/2-1,r2=r+stroke/2+1;tick=`<line class="ring-tick" x1="${(cx+r1*Math.cos(a)).toFixed(1)}" y1="${(cy+r1*Math.sin(a)).toFixed(1)}" x2="${(cx+r2*Math.cos(a)).toFixed(1)}" y2="${(cy+r2*Math.sin(a)).toFixed(1)}" stroke-width="2"/>`;} return `<svg class="ring-svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${safe}"><title>${safe}</title><circle class="ring-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${stroke}"/><circle class="ring-prog" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${circ.toFixed(2)}" data-off="${offset.toFixed(2)}" style="stroke:var(${colorVar}); --glow:var(${colorVar});"/>${tick}</svg>`; }
+function countUp(el,to,dur){ if(isNaN(to))return; if(prefersReduced){el.textContent=String(to);return;} const start=performance.now(); function tick(now){const p=Math.min(1,(now-start)/dur);const e=1-Math.pow(1-p,3);el.textContent=String(Math.round(to*e));if(p<1)requestAnimationFrame(tick);} requestAnimationFrame(tick); }
+function animateRings(root){ const run=()=>{root.querySelectorAll('.ring-prog').forEach(c=>{c.style.strokeDashoffset=c.dataset.off;});root.querySelectorAll('.ring-val[data-count]').forEach(v=>countUp(v,Number(v.dataset.count),850));}; if(prefersReduced){run();}else{requestAnimationFrame(()=>requestAnimationFrame(run));} }
 
-function renderHero(stats){
-  const vals=STAT_KEYS.map(s=>Number(stats[s.key])).filter(v=>!isNaN(v));
-  const index=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
-  document.getElementById('levelNum').textContent=stats.builder_level ?? '--';
-  document.getElementById('levelTitle').textContent=stats.builder_title || '--';
-  document.getElementById('heroSub').textContent='INDEX '+index;
-  const tier=nextTierFor(index);
-  document.getElementById('nextTier').textContent=tier.next?tier.next.name:'MAX TIER';
-  document.getElementById('nextPts').textContent=tier.next?(tier.ptsToNext+' to go'):'peak';
-  const ring=document.getElementById('heroRing'); const existing=ring.querySelector('.ring-svg'); if(existing)existing.remove();
-  ring.insertAdjacentHTML('afterbegin', ringSVG(index,'--ring-hero',150,12,`Builder index ${index} of 100`, tier.next?tier.next.floor:null));
-  animateRings(ring);
-  const lvl=Number(stats.builder_level);
-  if(lastLevel!==null && !isNaN(lvl) && lvl>lastLevel) celebrate(stats.builder_title);
-  if(!isNaN(lvl)) lastLevel=lvl;
-}
+function renderHero(stats){ const vals=STAT_KEYS.map(s=>Number(stats[s.key])).filter(v=>!isNaN(v)); const index=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0; const haveLevel=!(stats.builder_level==null||stats.builder_level===''); document.getElementById('levelNum').textContent=haveLevel?stats.builder_level:index; document.getElementById('levelTitle').textContent=stats.builder_title||'--'; document.getElementById('heroSub').textContent='INDEX '+index; const tier=nextTierFor(index); document.getElementById('nextTier').textContent=tier.next?tier.next.name:'MAX'; document.getElementById('nextPts').textContent=tier.next?(tier.ptsToNext+' to go'):'peak'; const ring=document.getElementById('heroRing'); const existing=ring.querySelector('.ring-svg');if(existing)existing.remove(); ring.insertAdjacentHTML('afterbegin',ringSVG(index,'--ring-hero',150,11,`Builder index ${index}`,tier.next?tier.next.floor:null)); animateRings(ring); const lvl=Number(stats.builder_level); if(lastLevel!==null&&!isNaN(lvl)&&lvl>lastLevel)celebrate(stats.builder_title); if(!isNaN(lvl))lastLevel=lvl; }
 
-function renderStatGrid(stats,decayFlags){
-  const grid=document.getElementById('statGrid');
-  if(!stats){ grid.innerHTML='<div class="msg" style="grid-column:1/-1;">No stat data yet.</div>'; return; }
-  const flags=(decayFlags||'').toUpperCase();
-  grid.innerHTML=STAT_KEYS.map(s=>{
-    const raw=stats[s.key]; const valNum=Number(raw)||0;
-    const isDecaying=s.decayKey && flags.includes(s.decayKey); const isCritical=valNum<20;
-    let cellClass='flag-ok', colorVar='--ring-ok';
-    if(isCritical){ cellClass='flag-critical'; colorVar='--ring-crit'; } else if(isDecaying){ cellClass='flag-decay'; colorVar='--ring-decay'; }
-    const numeric=!(raw===''||raw==null||isNaN(Number(raw)));
-    const display=numeric?raw:'--';
-    const centerVal=numeric?`<span class="ring-val" data-count="${valNum}">0</span>`:`<span class="ring-val">--</span>`;
-    const flagMark=isCritical?'<span class="ring-flag crit" title="Low">▼</span>':isDecaying?'<span class="ring-flag decay" title="Decaying">▲</span>':'';
-    const stateWord=isCritical?', low':isDecaying?', decaying':'';
-    return `
-      <div class="ring-cell ${cellClass}" data-stat="${s.label}">
-        ${flagMark}
-        <div class="ring-wrap">
-          ${ringSVG(valNum,colorVar,78,7,`${s.label} ${display}${stateWord}`)}
-          <div class="ring-center">${centerVal}</div>
-        </div>
-        <div class="ring-label">${s.label}</div>
-      </div>`;
-  }).join('');
-  animateRings(grid);
-}
+function renderGauges(stats,decayFlags){ const grid=document.getElementById('statGrid'); if(!stats){grid.innerHTML='<div class="msg" style="grid-column:1/-1;">No stat data yet.</div>';return;} const flags=(decayFlags||'').toUpperCase(); grid.innerHTML=STAT_KEYS.map(s=>{const val=stats[s.key];const numeric=!(val===''||val==null||isNaN(Number(val)));const isDecaying=s.decayKey&&flags.includes(s.decayKey);const isCritical=numeric&&Number(val)<20;let cellClass='flag-ok',colorVar='--ring-ok';if(!numeric){cellClass='flag-nodata';colorVar='--ring-track';}else if(isCritical){cellClass='flag-critical';colorVar='--ring-crit';}else if(isDecaying){cellClass='flag-decay';colorVar='--ring-decay';}const centerVal=numeric?`<span class="ring-val" data-count="${Number(val)}">0</span>`:`<span class="ring-val">--</span>`;const flagMark=!numeric?'':(isCritical?'<span class="ring-flag crit">▼</span>':isDecaying?'<span class="ring-flag decay">▲</span>':'');return `<div class="ring-cell ${cellClass}" data-stat="${s.label}"><div class="ring-wrap">${ringSVG(val,colorVar,78,8,`${s.label} ${numeric?val:'--'}`)}${flagMark}<div class="ring-center">${centerVal}</div></div><div class="ring-label">${s.label}</div></div>`;}).join(''); animateRings(grid); }
 
-function renderAlarms(decayFlags,pillarCap){
-  const strip=document.getElementById('alarmStrip'); const flags=(decayFlags||'').trim();
-  if(!flags && pillarCap!=='YES'){ strip.className='alarm-strip nominal'; strip.innerHTML=`<span class="alarm-dot"></span><span class="alarm-label">SYSTEMS NOMINAL</span>`; return; }
-  strip.className='alarm-strip active';
-  const chips=flags.split(/\s+/).filter(Boolean).map(f=>`<span class="alarm-chip">${f}</span>`).join('');
-  strip.innerHTML=`<span class="alarm-dot"></span><span class="alarm-label">ALERT</span>${chips}`+(pillarCap==='YES'?'<span class="alarm-chip">PILLAR-CAP</span>':'');
-}
+function renderAlarms(decayFlags,pillarCap){ const strip=document.getElementById('alarmStrip'),label=document.getElementById('alarmLabel'); const flags=(decayFlags||'').trim(); if(!flags&&pillarCap!=='YES'){strip.className='alarm-strip nominal';label.textContent='SYSTEMS NOMINAL';return;} strip.className='alarm-strip active'; const chips=flags.split(/\s+/).filter(Boolean).map(f=>`<span class="alarm-chip">${f}</span>`).join(''); strip.innerHTML=`<span class="alarm-dot"></span><span class="alarm-label">ALERT</span>${chips}`+(pillarCap==='YES'?'<span class="alarm-chip">PILLAR-CAP</span>':''); }
 
-function initBottomNav(){
-  const nav=document.querySelector('.bottom-nav'); const tabs=Array.from(nav.querySelectorAll('[role="tab"]'));
-  function select(tab){ tabs.forEach(t=>{ const on=t===tab; t.setAttribute('aria-selected',on?'true':'false'); t.tabIndex=on?0:-1; t.classList.toggle('active',on); const view=document.getElementById(t.getAttribute('aria-controls')); if(view){ view.classList.toggle('active',on); view.hidden=!on; } }); window.scrollTo({top:0}); }
-  tabs.forEach((tab,i)=>{ tab.addEventListener('click',()=>{ select(tab); tab.focus(); }); tab.addEventListener('keydown',(e)=>{ let idx=null; if(e.key==='ArrowRight')idx=(i+1)%tabs.length; else if(e.key==='ArrowLeft')idx=(i-1+tabs.length)%tabs.length; else if(e.key==='Home')idx=0; else if(e.key==='End')idx=tabs.length-1; if(idx!==null){ e.preventDefault(); select(tabs[idx]); tabs[idx].focus(); } }); });
-}
+let currentTasks=[]; const mTaskFilter={q:'',domain:'',page:1}; const M_PAGE=10;
+function isOverdue(t){ const st=String(t.status||'').toUpperCase(); if(st==='COMPLETE'||st==='DONE'||st==='CANCELLED')return false; const d=String(t.due_date||'').substring(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return false; const today=new Date();today.setHours(0,0,0,0);return new Date(d+'T00:00:00')<today; }
+
+function renderTasks(){ const list=document.getElementById('taskList'); if(!currentTasks.length){list.innerHTML='<div class="msg">No tasks logged yet.</div>';return;} let rows=currentTasks.filter(t=>t.task_id); const q=mTaskFilter.q.trim().toLowerCase(); if(q)rows=rows.filter(t=>[t.task_id,t.task_name,t.domain,t.stat_primary].some(v=>String(v||'').toLowerCase().includes(q))); if(mTaskFilter.domain)rows=rows.filter(t=>String(t.domain||'').toUpperCase()===mTaskFilter.domain); const total=rows.length, totalPages=Math.max(1,Math.ceil(total/M_PAGE)); if(mTaskFilter.page>totalPages)mTaskFilter.page=totalPages; const start=(mTaskFilter.page-1)*M_PAGE; const page=rows.slice(start,start+M_PAGE); if(!page.length){list.innerHTML='<div class="msg">No tasks match the filter.</div>';renderPager(totalPages);return;} list.innerHTML=page.map(t=>{ const st=String(t.status||'').toUpperCase(); const done=st==='COMPLETE'||st==='DONE'||st==='CANCELLED'; const overdue=isOverdue(t); const due=CADENCES.includes(String(t.due_date||'').toUpperCase())?t.due_date:String(t.due_date||'').substring(0,10); return `<div class="task-row" data-task-id="${esc(t.task_id)}"><span class="task-domain">${esc(t.domain||'—')}</span><span class="task-name">${esc(t.task_name)}</span><span class="task-due${overdue?' overdue':''}">${esc(due)}</span><button class="task-done-btn${done?' done':''}" ${done?'disabled':''} type="button">${done?'✓':'Done'}</button></div>`; }).join(''); renderPager(totalPages); wireDoneBtns(); const domSel=document.getElementById('mTaskDomain'); if(domSel){const doms=[...new Set(currentTasks.map(t=>String(t.domain||'').toUpperCase()).filter(Boolean))].sort();const cur=domSel.value;domSel.innerHTML='<option value="">All</option>'+doms.map(d=>`<option value="${d}">${d}</option>`).join('');if(doms.includes(cur))domSel.value=cur;} }
+const CADENCES=['DAILY','WEEKLY','FORTNIGHTLY','MONTHLY','3X_WEEKLY'];
+function renderPager(totalPages){ const p=document.getElementById('mTaskPager'); if(!p)return; if(totalPages<=1){p.hidden=true;return;} p.hidden=false; p.innerHTML=`<button type="button" ${mTaskFilter.page<=1?'disabled':''}>‹</button><span class="pg-info">Page ${mTaskFilter.page} / ${totalPages}</span><button type="button" ${mTaskFilter.page>=totalPages?'disabled':''}>›</button>`; const btns=p.querySelectorAll('button'); btns[0]?.addEventListener('click',()=>{mTaskFilter.page--;renderTasks();}); btns[1]?.addEventListener('click',()=>{mTaskFilter.page++;renderTasks();}); }
+function wireDoneBtns(){ document.querySelectorAll('.task-done-btn:not(.done)').forEach(btn=>{ btn.addEventListener('click', async()=>{ if(btn.dataset.confirm!=='yes'){btn.textContent='Sure?';btn.dataset.confirm='yes';setTimeout(()=>{if(btn.dataset.confirm==='yes'){btn.textContent='Done';delete btn.dataset.confirm;}},2500);return;} const row=btn.closest('[data-task-id]');const taskId=row?.dataset.taskId;if(!taskId)return; btn.textContent='...'; const result=await apiPost('complete_task',{task_id:taskId});if(result.error||result.status==='error'){showToast('Mark failed: '+(result.error||'unknown'),'error');btn.textContent='Done';return;} rewardFeedback({},result.awarded);loadAll(); }); }); }
+
+document.getElementById('mTaskSearch').addEventListener('input',e=>{mTaskFilter.q=e.target.value;mTaskFilter.page=1;renderTasks();});
+document.getElementById('mTaskDomain').addEventListener('change',e=>{mTaskFilter.domain=e.target.value;mTaskFilter.page=1;renderTasks();});
+
+function renderAlcohol(sessions){ const list=document.getElementById('alcoholList'); const data=sessions||[]; if(!data.length){list.innerHTML='<div class="msg">No drinks logged this week.</div>';return;} list.innerHTML=[...data].sort((a,b)=>new Date(b.drink_ts)-new Date(a.drink_ts)).map(s=>`<div class="alc-row"><span class="alc-date">${esc(String(s.date||'').substring(5))}</span><span class="alc-type">${esc(s.drink_type)} ${esc(s.volume_ml)}ml</span><span class="alc-units">${esc(s.units)} u</span></div>`).join(''); }
+async function logDrink(){ const type=document.getElementById('drinkType').value.trim();const volume=document.getElementById('drinkVolume').value;const abv=document.getElementById('drinkAbv').value; if(!type||!volume){showToast('Type and volume required.','error');return;} const btn=document.getElementById('logDrinkBtn');btn.textContent='...'; const result=await apiPost('log_drink',{drink_type:type,volume_ml:Number(volume)||0,abv_pct:Number(abv)||0}); btn.textContent='+ Log Drink'; if(result.error){showToast('Failed: '+result.error,'error');return;} document.getElementById('drinkType').value='';document.getElementById('drinkVolume').value='';document.getElementById('drinkAbv').value=''; showToast('Drink logged','success');loadAll(); }
+document.getElementById('logDrinkBtn').addEventListener('click',logDrink);
+
+let WATER_GOAL_L=2.5;
+function renderWater(health){ const total=health?Number(health.water)||0:0; document.getElementById('waterTotal').innerHTML=total.toFixed(2)+'<span class="tunit">L</span>'; document.getElementById('waterBarFill').style.width=Math.min(100,(total/WATER_GOAL_L)*100)+'%'; }
+async function logWater(litres){ if(!litres||litres<=0){showToast('Enter a valid amount.','error');return;} const result=await apiPost('log_water',{amount_litres:litres}); if(result.error){showToast('Failed: '+result.error,'error');return;} showToast(`+${litres} L water`,'reward');loadAll(); }
+document.querySelectorAll('[data-amount]').forEach(btn=>btn.addEventListener('click',()=>logWater(Number(btn.dataset.amount))));
+document.getElementById('logWaterCustomBtn').addEventListener('click',()=>{const v=Number(document.getElementById('waterCustom').value);logWater(v);document.getElementById('waterCustom').value='';});
+
+function formatSyncDate(iso){ if(!iso)return '--'; const d=new Date(iso); if(isNaN(d))return '--'; const mins=Math.round((Date.now()-d.getTime())/60000); if(mins<1)return 'just now'; if(mins<60)return mins+'m ago'; const hrs=Math.round(mins/60); if(hrs<24)return hrs+'h ago'; return Math.round(hrs/24)+'d ago'; }
+let lastSyncISO=null;
+function refreshSyncDisplay(){ document.getElementById('syncDate').textContent=formatSyncDate(lastSyncISO); }
+setInterval(refreshSyncDisplay,30000);
+
+function initBottomNav(){ const btns=Array.from(document.querySelectorAll('.nav-btn[role="tab"]')); function select(btn){ btns.forEach(b=>{ const on=b===btn; b.setAttribute('aria-selected',on?'true':'false'); b.tabIndex=on?0:-1; b.classList.toggle('active',on); const view=document.getElementById(b.getAttribute('aria-controls')); if(view){view.classList.toggle('active',on);view.hidden=!on;} }); } btns.forEach(btn=>btn.addEventListener('click',()=>{select(btn);btn.focus();})); }
 initBottomNav();
 
-let WATER_GOAL_L=2.5; // fallback; overwritten from CONFIG's weight-based 'Water Target (L)' on load
-function renderWater(health){ const total=health?Number(health.water)||0:0; document.getElementById('waterTotal').innerHTML=total.toFixed(2)+'<span class="tunit">L</span>'; const goalEl=document.getElementById('waterGoal'); if(goalEl)goalEl.textContent=WATER_GOAL_L.toFixed(1); document.getElementById('waterBarFill').style.width=Math.min(100,(total/WATER_GOAL_L)*100)+'%'; }
-async function logWater(amountLitres){ if(!amountLitres||amountLitres<=0){ showToast('Enter a valid amount.','error'); return; } const result=await apiPost('log_water',{amount_litres:amountLitres}); if(result.error){ showToast('Log failed: '+result.error,'error'); return; } showToast(`+${amountLitres} L water`,'reward'); loadAll(); }
-document.querySelectorAll('[data-amount]').forEach(btn=>{ btn.addEventListener('click',()=>logWater(Number(btn.dataset.amount))); });
-document.getElementById('logWaterCustomBtn').addEventListener('click',()=>{ const i=document.getElementById('waterCustom'); logWater(Number(i.value)); i.value=''; });
+async function loadAll(){ startBootSequence(); try{ const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week')]); const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb; const cfgRes=unwrap(results[0],null),statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]); if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l); const stats=statsRes.stats; if(stats){lastSyncISO=stats.calculated_at;refreshSyncDisplay();renderHero(stats);renderGauges(stats,stats.decay_flags);renderAlarms(stats.decay_flags,stats.pillar_cap);} else{renderGauges(null);} renderWater(healthRes.health); currentTasks=(tasksRes.tasks||[]).filter(t=>t.task_id);renderTasks(); renderAlcohol(alcoholRes.sessions); }catch(err){showToast('Could not reach the backend.','error');console.error(err);}finally{stopBootSequence();} }
+document.getElementById('refreshBtn').addEventListener('click',loadAll);
+document.getElementById('nav-mood')?.addEventListener('click', loadMood);
+/* ── FLOATING ADD BUTTON (mobile) ── */
+document.getElementById('fabAdd')?.addEventListener('click', async ()=>{
+  const title = window.prompt('Capture a task:');
+  if(!title || !title.trim()) return;
+  const result = await apiPost('quick_capture', { title: title.trim() });
+  if(result.error||result.status==='error'){ showToast('Capture failed','error'); return; }
+  showToast('Captured','success');
+  loadAll();
+});
 
-async function logDrink(){
-  const type=document.getElementById('drinkType').value.trim(); const volume=document.getElementById('drinkVolume').value; const abv=document.getElementById('drinkAbv').value;
-  if(!type||!volume){ showToast('Type and volume are required.','error'); return; }
-  const btn=document.getElementById('logDrinkBtn'); btn.textContent='...';
-  const result=await apiPost('log_drink',{drink_type:type,volume_ml:Number(volume)||0,abv_pct:Number(abv)||0,session_id:'NEW'});
-  btn.textContent='+ Log Drink';
-  if(result.error){ showToast('Log failed: '+result.error,'error'); return; }
-  document.getElementById('drinkType').value=''; document.getElementById('drinkVolume').value=''; document.getElementById('drinkAbv').value='';
-  showToast('Drink logged','success'); loadAll();
-}
-document.getElementById('logDrinkBtn').addEventListener('click', logDrink);
-
-function renderAlcoholList(sessions){ const list=document.getElementById('alcoholList'); const rows=(sessions||[]).slice().sort((a,b)=>new Date(b.drink_ts)-new Date(a.drink_ts)); if(!rows.length){ list.innerHTML='<div class="msg">No drinks logged in the last 7 days.</div>'; return; } list.innerHTML=rows.map(s=>`<div class="alc-row"><span class="alc-date">${esc(String(s.date).substring(5))}</span><span class="alc-type">${esc(s.drink_type)} · ${esc(s.volume_ml)}ml</span><span class="alc-units">${esc(s.units)}u</span></div>`).join(''); }
-
-/* Task list: 6 headline items per page, filterable. State survives re-renders;
-   allTasks refreshes on loadAll. */
-const M_PAGE_SIZE=6;
-let mAllPending=[], mLoadedOnce=false;
-const mFilter={ q:'', domain:'', page:1 };
-function renderTasks(tasks){
-  if(tasks!==undefined){
-    mLoadedOnce=true;
-    mAllPending=(tasks||[]).filter(t=>t.task_id && (t.status||'').toUpperCase()!=='COMPLETE' && (t.status||'').toUpperCase()!=='CANCELLED').sort((a,b)=>new Date(a.due_date||'9999-12-31')-new Date(b.due_date||'9999-12-31'));
-    // hydrate domain filter options once per data load, keep selection
-    const dsel=document.getElementById('mTaskDomain');
-    if(dsel){
-      const doms=[...new Set(mAllPending.map(t=>String(t.domain||'').toUpperCase()).filter(Boolean))].sort();
-      const cur=dsel.value;
-      dsel.innerHTML='<option value="">All</option>'+doms.map(d=>`<option value="${d}">${d}</option>`).join('');
-      if(doms.includes(cur))dsel.value=cur;
-    }
+/* ── MOOD LOGGING (mobile) ── */
+let selectedMood = null;
+(function buildMoodScale(){
+  const scale = document.getElementById('moodScale');
+  if(!scale) return;
+  scale.innerHTML='';
+  for(let i=1;i<=10;i++){
+    const b=document.createElement('button');
+    b.className='mood-btn'; b.type='button'; b.textContent=String(i); b.dataset.mood=String(i);
+    b.setAttribute('aria-label','Mood '+i+' of 10');
+    b.addEventListener('click',()=>{ selectedMood=i; scale.querySelectorAll('.mood-btn').forEach(x=>x.classList.toggle('selected',x===b)); });
+    scale.appendChild(b);
   }
-  const list=document.getElementById('taskList');
-  const q=mFilter.q.trim().toLowerCase();
-  let rows=mAllPending;
-  if(q) rows=rows.filter(t=>[t.task_id,t.task_name,t.domain,t.stat_primary,t.stat_secondary].some(v=>String(v||'').toLowerCase().includes(q)));
-  if(mFilter.domain) rows=rows.filter(t=>String(t.domain||'').toUpperCase()===mFilter.domain);
-  const totalPages=Math.max(1,Math.ceil(rows.length/M_PAGE_SIZE));
-  if(mFilter.page>totalPages)mFilter.page=totalPages;
-  if(mFilter.page<1)mFilter.page=1;
-  const pageRows=rows.slice((mFilter.page-1)*M_PAGE_SIZE, mFilter.page*M_PAGE_SIZE);
-  const pager=document.getElementById('mTaskPager');
-  if(!mAllPending.length){ list.innerHTML=mLoadedOnce?'<div class="msg">Nothing pending — clean board.</div>':'<div class="msg error">Couldn\'t load tasks — tap refresh.</div>'; if(pager)pager.hidden=true; return; }
-  if(!rows.length){ list.innerHTML='<div class="msg">No tasks match the filter.</div>'; if(pager)pager.hidden=true; return; }
-  const today=new Date(); today.setHours(0,0,0,0);
-  list.innerHTML=pageRows.map(t=>{ const due=t.due_date?String(t.due_date).substring(0,10):''; const isOverdue=due&&/^\d{4}-\d{2}-\d{2}$/.test(due)&&new Date(due)<today; return `<div class="task-row" data-task-id="${esc(t.task_id)}"><span class="task-domain">${esc(t.domain)}</span><span class="task-name">${esc(t.task_name)}</span><span class="task-due ${isOverdue?'overdue':''}">${due||''}</span><button class="task-done-btn" data-action="done" aria-label="Mark ${esc(t.task_name)} done">Done</button></div>`; }).join('');
-  if(pager){
-    if(totalPages<=1){ pager.hidden=true; pager.innerHTML=''; }
-    else {
-      pager.hidden=false;
-      pager.innerHTML=`<button type="button" id="mPgPrev" ${mFilter.page<=1?'disabled':''}>‹ Prev</button><span class="pg-info">${mFilter.page} / ${totalPages}</span><button type="button" id="mPgNext" ${mFilter.page>=totalPages?'disabled':''}>Next ›</button>`;
-      pager.querySelector('#mPgPrev')?.addEventListener('click',()=>{ mFilter.page--; renderTasks(); });
-      pager.querySelector('#mPgNext')?.addEventListener('click',()=>{ mFilter.page++; renderTasks(); });
-    }
-  }
-  list.querySelectorAll('[data-action="done"]').forEach((btn,i)=>{
-    btn.addEventListener('click', async ()=>{
-      const row=btn.closest('.task-row'); const taskId=row.dataset.taskId; const task=mAllPending.find(p=>String(p.task_id)===String(taskId)); btn.textContent='...';
-      const result=await apiPost('update_task',{task_id:taskId,status:'COMPLETE'});
-      if(result.error){ showToast('Update failed: '+result.error,'error'); btn.textContent='Done'; return; }
-      btn.textContent='✓'; btn.classList.add('done'); btn.disabled=true; row.style.opacity='0.5';
-      if(task) rewardFeedback(task, result.awarded); else showToast('Task marked done','success');
-    });
-  });
-}
-function esc(v){ if(v===null||v===undefined)return ''; return String(v).replace(/"/g,'&quot;'); }
-(function wireMobileTaskFilter(){
-  const s=document.getElementById('mTaskSearch'), d=document.getElementById('mTaskDomain');
-  if(!s)return;
-  s.addEventListener('input',()=>{ mFilter.q=s.value; mFilter.page=1; renderTasks(); });
-  d.addEventListener('change',()=>{ mFilter.domain=d.value; mFilter.page=1; renderTasks(); });
 })();
 
-async function loadAll(){
-  startBootSequence();
+async function logMood(){
+  if(selectedMood===null){ showToast('Pick a mood 1-10 first.','error'); return; }
+  const tag=document.getElementById('moodTag').value.trim();
+  const note=document.getElementById('moodNote').value.trim();
+  const btn=document.getElementById('logMoodBtn'); btn.textContent='...';
+  const result=await apiPost('log_mood',{ mood:selectedMood, tag, note });
+  btn.textContent='+ Log Mood';
+  if(result.error||result.status==='error'){ showToast('Log failed: '+(result.error||'unknown'),'error'); return; }
+  showToast('Mood '+selectedMood+'/10 logged','reward');
+  selectedMood=null;
+  document.getElementById('moodScale').querySelectorAll('.mood-btn').forEach(x=>x.classList.remove('selected'));
+  document.getElementById('moodTag').value=''; document.getElementById('moodNote').value='';
+  loadMood();
+}
+document.getElementById('logMoodBtn')?.addEventListener('click', logMood);
+
+async function loadMood(){
   try{
-    const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week')]);
-    const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb;
-    const cfgRes=(results[0].status==='fulfilled')?results[0].value:null;
-    if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l);
-    const statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]);
-    results.forEach((r,i)=>{ if(r.status==='rejected')console.warn(`Builder OS mobile: call ${i} failed —`,r.reason); });
-    const stats=statsRes.stats;
-    if(stats){ document.getElementById('syncDate').textContent=stats.date||'--'; renderHero(stats); renderStatGrid(stats,stats.decay_flags); renderAlarms(stats.decay_flags,stats.pillar_cap); }
-    else { renderStatGrid(null); }
-    renderWater(healthRes.health); renderTasks(tasksRes.tasks); renderAlcoholList(alcoholRes.sessions);
-  }catch(err){ document.getElementById('statGrid').innerHTML=`<div class="msg error" style="grid-column:1/-1;">Could not reach Builder OS backend.</div>`; showToast('Could not reach the backend.','error'); console.error(err); }
-  finally{ stopBootSequence(); }
+    const [todayRes, weekRes] = await Promise.all([apiGet('mood_today'), apiGet('mood_week')]);
+    const avgEl=document.getElementById('moodTodayAvg'), cntEl=document.getElementById('moodTodayCount');
+    if(avgEl) avgEl.textContent=(todayRes.average!=null)?todayRes.average:'--';
+    if(cntEl) cntEl.textContent=todayRes.count?(todayRes.count+' log'+(todayRes.count===1?'':'s')+' today'):'no logs yet today';
+    const list=document.getElementById('moodLogList');
+    if(list){
+      const logs=todayRes.logs||[];
+      list.innerHTML=logs.length
+        ? logs.slice().reverse().map(l=>'<div class="mood-log-row"><span class="mood-log-time">'+esc(l.time)+'</span><span class="mood-log-score">'+esc(l.mood)+'</span>'+(l.tag?'<span class="mood-log-tag">'+esc(l.tag)+'</span>':'')+'<span class="mood-log-note">'+esc(l.note||'')+'</span></div>').join('')
+        : '<div class="mood-empty">No mood logged yet today.</div>';
+    }
+    const spark=document.getElementById('moodSpark');
+    if(spark){
+      const days=weekRes.days||[];
+      spark.innerHTML=days.map(d=>{
+        const pct=d.average!=null?(d.average/10*100):0;
+        return '<div class="mood-spark-day"><span class="mood-spark-val">'+(d.average!=null?d.average:'')+'</span><div><div class="mood-spark-bar '+(d.average==null?'empty':'')+'" style="height:'+Math.max(3,pct)+'%"></div></div><span class="mood-spark-label">'+d.date.substring(8)+'</span></div>';
+      }).join('');
+    }
+  }catch(err){ console.warn('Mood load failed',err); }
 }
 
-document.getElementById('refreshBtn').addEventListener('click', loadAll);
 AUTH.init(loadAll);
 
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{})); }
