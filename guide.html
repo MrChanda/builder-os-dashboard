@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Builder's Codex — How to Win</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0F15; --panel:#131D28; --panel-2:#1A2734; --panel-3:#21303F;
+    --line:#2A3B4C; --line-dim:#1E2C39;
+    --cyan:#38C0EC; --cyan-2:#1E9FD0; --cyan-soft:rgba(56,192,236,0.14);
+    --amber:#ECB04A; --amber-soft:rgba(236,176,74,0.16);
+    --red:#F0635A; --red-soft:rgba(240,99,90,0.16);
+    --green:#3FD389; --green-soft:rgba(63,211,137,0.16);
+    --text:#EAF1F7; --text-dim:#A6B7C5; --text-faint:#75889A;
+    --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+    --r-sm:10px; --r-md:16px; --r-lg:22px; --r-pill:999px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:
+      radial-gradient(1100px 520px at 50% -8%, rgba(56,192,236,0.10), transparent 60%),
+      radial-gradient(800px 500px at 100% 0%, rgba(30,159,208,0.06), transparent 55%), var(--bg);
+    color:var(--text); font-family:var(--sans); line-height:1.6;
+  }
+  a{color:var(--cyan);}
+  ::selection{background:var(--cyan-soft);}
+  :focus-visible{outline:2px solid var(--cyan); outline-offset:3px;}
+
+  /* progress bar — reading the guide is its own small quest */
+  #progressTrack{position:fixed; top:0; left:0; width:100%; height:3px; background:var(--panel-2); z-index:100;}
+  #progressFill{height:100%; width:0%; background:linear-gradient(90deg, var(--cyan-2), var(--cyan)); box-shadow:0 0 10px var(--cyan-soft); transition:width 0.15s ease;}
+
+  nav#toc{
+    position:sticky; top:3px; z-index:90; background:rgba(10,15,21,0.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); padding:10px 20px; display:flex; gap:4px; overflow-x:auto;
+    white-space:nowrap; scrollbar-width:thin;
+  }
+  nav#toc a{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.05em; text-transform:uppercase;
+    color:var(--text-faint); text-decoration:none; padding:8px 12px; border-radius:var(--r-pill);
+    border:1px solid transparent; transition:all 0.15s ease; flex-shrink:0;
+  }
+  nav#toc a:hover{color:var(--text); border-color:var(--line);}
+  nav#toc a.active{color:var(--cyan); border-color:var(--cyan-soft); background:var(--cyan-soft);}
+
+  .wrap{max-width:880px; margin:0 auto; padding:0 24px 100px;}
+
+  header.cover{padding:72px 0 48px; text-align:center;}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:0.3em; text-transform:uppercase; color:var(--cyan); margin-bottom:14px;}
+  h1.title{font-family:var(--mono); font-size:clamp(32px,6vw,54px); font-weight:700; margin:0; letter-spacing:0.01em; text-shadow:0 0 30px rgba(56,192,236,0.35);}
+  h1.title span{color:var(--cyan);}
+  .subtitle{color:var(--text-dim); font-size:16px; margin-top:14px; max-width:520px; margin-left:auto; margin-right:auto;}
+  .cover-rule{width:64px; height:2px; background:var(--cyan); margin:28px auto 0; box-shadow:0 0 12px var(--cyan);}
+
+  section.chapter{padding:56px 0; border-top:1px solid var(--line-dim); scroll-margin-top:70px;}
+  section.chapter:first-of-type{border-top:none;}
+  .chapter-head{display:flex; align-items:baseline; gap:16px; margin-bottom:22px;}
+  .chapter-num{font-family:var(--mono); font-size:13px; color:var(--cyan); letter-spacing:0.1em; border:1px solid var(--cyan-soft); background:var(--cyan-soft); padding:5px 11px; border-radius:var(--r-pill); flex-shrink:0;}
+  h2.chapter-title{font-family:var(--mono); font-size:26px; margin:0; letter-spacing:0.01em;}
+  p{color:var(--text-dim); font-size:15px;}
+  p.lead{color:var(--text); font-size:16.5px;}
+  strong{color:var(--text); font-weight:600;}
+
+  .callout{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-lg); padding:18px 22px; margin:18px 0;}
+  .callout-head{font-family:var(--mono); font-size:11px; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+  .callout.tip{border-color:var(--cyan-soft);} .callout.tip .callout-head{color:var(--cyan);}
+  .callout.warn{border-color:var(--amber-soft);} .callout.warn .callout-head{color:var(--amber);}
+  .callout.danger{border-color:var(--red-soft);} .callout.danger .callout-head{color:var(--red);}
+  .callout p{margin:0; color:var(--text-dim); font-size:14.5px;}
+
+  /* Character sheet — the signature block */
+  .statsheet{border:1px solid var(--cyan-soft); background:linear-gradient(160deg, var(--panel), var(--panel-2)); border-radius:var(--r-lg); padding:24px; margin:24px 0; box-shadow:0 0 40px rgba(56,192,236,0.06);}
+  .statsheet-head{font-family:var(--mono); font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--cyan); margin-bottom:16px;}
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;}
+  .stat-card{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-md); padding:14px 16px;}
+  .stat-card .stat-id{font-family:var(--mono); font-weight:700; font-size:15px; color:var(--cyan); letter-spacing:0.06em;}
+  .stat-card .stat-name{font-size:12px; color:var(--text-faint); margin:2px 0 8px;}
+  .stat-card .stat-desc{font-size:13.5px; color:var(--text-dim);}
+
+  /* Domain cards */
+  .domain-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:20px 0;}
+  .domain-card{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-md); padding:16px;}
+  .domain-card .domain-id{font-family:var(--mono); font-size:11px; letter-spacing:0.1em; color:var(--cyan); text-transform:uppercase;}
+  .domain-card p{margin:6px 0 0; font-size:13.5px; color:var(--text-dim);}
+
+  /* Quest type comparison */
+  .quest-compare{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0;}
+  @media (max-width:600px){ .quest-compare{grid-template-columns:1fr;} }
+  .quest-card{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-lg); padding:20px;}
+  .quest-card h3{font-family:var(--mono); font-size:15px; margin:0 0 8px; letter-spacing:0.04em;}
+  .quest-card.milestone h3{color:var(--amber);}
+  .quest-card.recurring h3{color:var(--cyan);}
+  .quest-card p{font-size:13.5px; margin:6px 0;}
+
+  /* worked example table */
+  table.example{width:100%; border-collapse:collapse; margin:18px 0; font-size:13.5px;}
+  table.example th{text-align:left; font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); padding:10px 12px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  table.example td{padding:9px 12px; border-bottom:1px solid var(--line-dim); color:var(--text-dim);}
+  table.example tr:last-child td{border-bottom:1px solid var(--line);}
+
+  /* tier ladder */
+  .ladder{display:flex; flex-direction:column-reverse; gap:6px; margin:24px 0;}
+  .rung{display:flex; align-items:center; gap:14px; border:1px solid var(--line); background:var(--panel); border-radius:var(--r-md); padding:12px 18px; position:relative;}
+  .rung .rung-num{font-family:var(--mono); font-size:11px; color:var(--text-faint); width:20px; flex-shrink:0;}
+  .rung .rung-name{font-family:var(--mono); font-weight:600; font-size:14.5px; letter-spacing:0.03em;}
+  .rung .rung-desc{font-size:12.5px; color:var(--text-dim); margin-left:auto; text-align:right;}
+  .rung.top{border-color:var(--cyan-soft); background:linear-gradient(90deg, var(--cyan-soft), transparent); box-shadow:0 0 24px rgba(56,192,236,0.08);}
+  .rung.top .rung-name{color:var(--cyan);}
+
+  /* HUD reading guide */
+  .hud-item{display:flex; gap:16px; align-items:flex-start; margin:16px 0; padding:14px 18px; border:1px solid var(--line); background:var(--panel); border-radius:var(--r-md);}
+  .hud-dot{width:14px; height:14px; border-radius:50%; flex-shrink:0; margin-top:3px; box-shadow:0 0 10px currentColor;}
+  .hud-dot.ok{background:var(--cyan); color:var(--cyan);}
+  .hud-dot.warn{background:var(--amber); color:var(--amber);}
+  .hud-dot.crit{background:var(--red); color:var(--red);}
+  .hud-item h4{margin:0 0 4px; font-family:var(--mono); font-size:13.5px; letter-spacing:0.03em;}
+  .hud-item p{margin:0; font-size:13.5px;}
+
+  /* troubleshooting table */
+  table.trouble{width:100%; border-collapse:collapse; margin:20px 0; font-size:13.5px;}
+  table.trouble th{text-align:left; font-family:var(--mono); font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint); padding:10px 12px; border-bottom:1px solid var(--line); background:var(--panel-2); width:38%;}
+  table.trouble td{padding:10px 12px; border-bottom:1px solid var(--line-dim); color:var(--text-dim); vertical-align:top;}
+
+  /* glossary */
+  .glossary{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:18px 0;}
+  .gterm{border:1px solid var(--line); background:var(--panel); border-radius:var(--r-md); padding:12px 16px;}
+  .gterm dt{font-family:var(--mono); font-size:13px; color:var(--cyan); font-weight:600;}
+  .gterm dd{margin:4px 0 0; font-size:13px; color:var(--text-dim);}
+
+  kbd{background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:2px 7px; font-family:var(--mono); font-size:12px;}
+  ol,ul{color:var(--text-dim); font-size:14.5px; padding-left:22px;}
+  ol li, ul li{margin:6px 0;}
+
+  footer.page{text-align:center; padding:48px 0 20px; font-family:var(--mono); font-size:11px; color:var(--text-faint); letter-spacing:0.05em;}
+</style>
+</head>
+<body>
+
+<div id="progressTrack"><div id="progressFill"></div></div>
+
+<nav id="toc" aria-label="Chapters">
+  <a href="#ch00">00 Start</a>
+  <a href="#ch01">01 Sheet</a>
+  <a href="#ch02">02 Domains</a>
+  <a href="#ch03">03 Quests</a>
+  <a href="#ch04">04 Decay</a>
+  <a href="#ch05">05 HUD</a>
+  <a href="#ch06">06 Resources</a>
+  <a href="#ch07">07 Fast Capture</a>
+  <a href="#ch08">08 Tiers</a>
+  <a href="#ch09">09 Troubleshoot</a>
+  <a href="#ch10">10 Glossary</a>
+</nav>
+
+<div class="wrap">
+
+  <header class="cover">
+    <div class="eyebrow">Player's Guide</div>
+    <h1 class="title">THE BUILDER'S<br><span>CODEX</span></h1>
+    <p class="subtitle">Builder OS isn't a game you finish. It's a game you keep winning, one day at a time — and this is how you play it well.</p>
+    <div class="cover-rule"></div>
+  </header>
+
+  <section class="chapter" id="ch00">
+    <div class="chapter-head"><span class="chapter-num">CH. 00</span><h2 class="chapter-title">Start Here</h2></div>
+    <p class="lead">Builder OS is a character sheet for your real life. Instead of a fictional hero, the character is <strong>you</strong>. Instead of dragons, the challenges are the things you're actually trying to get better at — training, work, school, relationships, money, and how you take care of yourself.</p>
+    <p>Every day you do things: workouts, deep-work sessions, study, conversations that matter, money moves. Some of those get logged in the app. Logged actions feed six <strong>stats</strong>. Stats combine into a <strong>Builder Level</strong> and a <strong>title</strong> — Apprentice, working up toward Sovereign.</p>
+    <p>There's no final boss. There's no ending screen. The whole game is: <strong>show up more days than you don't, and don't let things slide long enough to decay.</strong> That's it. That's the entire strategy guide in one sentence — everything below is detail on how to play it well.</p>
+    <div class="callout tip">
+      <div class="callout-head">🡒 Getting in</div>
+      <p>On iPhone: open the dashboard link in <strong>Safari</strong>, tap the Share icon, then "Add to Home Screen." On Android: open it in <strong>Chrome</strong>, tap the three-dot menu, then "Install app." Either way you get a real home-screen icon that opens full-screen, no browser bar.</p>
+    </div>
+  </section>
+
+  <section class="chapter" id="ch01">
+    <div class="chapter-head"><span class="chapter-num">CH. 01</span><h2 class="chapter-title">Your Character Sheet</h2></div>
+    <p class="lead">Six stats, each scored 0–100. This is what you're actually training.</p>
+    <div class="statsheet">
+      <div class="statsheet-head">◆ Core Stats</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-id">STR</div><div class="stat-name">Strength</div><div class="stat-desc">Raw physical output — training, lifting, pushing your body.</div></div>
+        <div class="stat-card"><div class="stat-id">END</div><div class="stat-name">Endurance</div><div class="stat-desc">Stamina and sustained physical effort — the long-haul stat.</div></div>
+        <div class="stat-card"><div class="stat-id">REC</div><div class="stat-name">Recovery</div><div class="stat-desc">How well you're actually resting — sleep quality and staying ahead of things that wear you down (like alcohol).</div></div>
+        <div class="stat-card"><div class="stat-id">INT</div><div class="stat-name">Intellect</div><div class="stat-desc">Learning and sharpening your mind — study, courses, deliberate skill-building.</div></div>
+        <div class="stat-card"><div class="stat-id">EQ</div><div class="stat-name">Emotional Intelligence</div><div class="stat-desc">How you show up for people — relationships, mentoring, self-reflection.</div></div>
+        <div class="stat-card"><div class="stat-id">SOV</div><div class="stat-name">Sovereignty</div><div class="stat-desc">Your independence and control over your own life — money moves, autonomy, long-term security.</div></div>
+      </div>
+    </div>
+    <div class="callout tip">
+      <div class="callout-head">🡒 How stats actually move</div>
+      <p>Every quest (task) you set up is tagged with which stat(s) it trains. Complete it, and that stat gets the points. Some quests train two stats at once. There's no fixed formula tying a life area to a single stat — it depends on what each quest was built to feed.</p>
+    </div>
+  </section>
+
+  <section class="chapter" id="ch02">
+    <div class="chapter-head"><span class="chapter-num">CH. 02</span><h2 class="chapter-title">The Seven Domains</h2></div>
+    <p class="lead">Domains are the regions of your life — how your quest log is organized, not the stats themselves.</p>
+    <div class="domain-grid">
+      <div class="domain-card"><div class="domain-id">School</div><p>Formal learning — courses, study sessions, coursework.</p></div>
+      <div class="domain-card"><div class="domain-id">Work</div><p>Your job — deliverables, professional output.</p></div>
+      <div class="domain-card"><div class="domain-id">Hustle</div><p>Side projects, extra income, things you're building on the side.</p></div>
+      <div class="domain-card"><div class="domain-id">Health</div><p>Training, sleep, physical upkeep — much of this feeds itself from your watch automatically.</p></div>
+      <div class="domain-card"><div class="domain-id">Help</div><p>Mentoring, showing up for other people.</p></div>
+      <div class="domain-card"><div class="domain-id">Inner</div><p>Journaling, reflection, intentional time with people close to you.</p></div>
+      <div class="domain-card"><div class="domain-id">Sov</div><p>Financial moves, savings, independence-building actions.</p></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="ch03">
+    <div class="chapter-head"><span class="chapter-num">CH. 03</span><h2 class="chapter-title">Quests: Two Kinds</h2></div>
+    <p class="lead">Every task in your Work Order Log is one of two quest types, and they behave differently.</p>
+    <div class="quest-compare">
+      <div class="quest-card milestone">
+        <h3>◇ MILESTONE</h3>
+        <p>A one-off deliverable with a real calendar date. "Submit approval," "finish the assignment." Complete it once, it goes <strong>COMPLETE</strong>, and it's done — no repeat.</p>
+      </div>
+      <div class="quest-card recurring">
+        <h3>◈ RECURRING</h3>
+        <p>A standing habit with a cadence — DAILY, WEEKLY, FORTNIGHTLY, MONTHLY, or 3X_WEEKLY. It never "finishes." Completing it logs one instance and the quest stays on your list, waiting for next time.</p>
+      </div>
+    </div>
+    <div class="callout warn">
+      <div class="callout-head">⚠ Don't cross the streams</div>
+      <p>A RECURRING quest's due-date field is a <strong>cadence dropdown</strong>, not a date. A MILESTONE's is a real <strong>date picker</strong>. Pick your Type first — the field only shows correctly once it's set. If you ever see a RECURRING quest showing an empty date-picker instead of a cadence dropdown, don't save it — flag it instead.</p>
+    </div>
+    <ol>
+      <li>Tap <strong>+ Add Task</strong>.</li>
+      <li>Pick a <strong>Domain</strong> first — it decides your quest's ID prefix automatically. You never type an ID.</li>
+      <li>Pick <strong>Type</strong> before touching the due-date field.</li>
+      <li>Points for completing late auto-fill at 75% of on-time points. Leave that alone unless this specific quest needs a different penalty.</li>
+    </ol>
+  </section>
+
+  <section class="chapter" id="ch04">
+    <div class="chapter-head"><span class="chapter-num">CH. 04</span><h2 class="chapter-title">The Enemy: Decay</h2></div>
+    <p class="lead">Decay is the only real opponent in this game. It's a point penalty that kicks in when a stat's quests go untouched past their grace period.</p>
+    <p>It exists so that <strong>showing up consistently</strong> — not one big burst of effort — is what actually moves your level. A huge push this week doesn't cover for silence next week; decay keeps ticking on its own clock.</p>
+    <div class="callout danger">
+      <div class="callout-head">⚠ If a stat looks stuck</div>
+      <p>The app can only score what you tell it. If a stat isn't moving despite real effort, it's almost always because the matching quest wasn't marked complete — not because the app failed to notice.</p>
+    </div>
+    <p><strong>Worked example — the weekly training split.</strong> One vague "go to the gym" quest got split into four independent quests, each decaying on its own:</p>
+    <table class="example">
+      <thead><tr><th>Quest</th><th>Trains</th><th>On-Time Pts</th><th>Weekly Decay</th></tr></thead>
+      <tbody>
+        <tr><td>Push Day</td><td>STR</td><td>4</td><td>3</td></tr>
+        <tr><td>Pull Day</td><td>STR</td><td>4</td><td>3</td></tr>
+        <tr><td>Leg Day</td><td>STR</td><td>4</td><td>3</td></tr>
+        <tr><td>Run 5K</td><td>END</td><td>3</td><td>3</td></tr>
+      </tbody>
+    </table>
+    <p>Each of these runs Monday–Sunday. Skip Leg Day two weeks straight and you eat that penalty <strong>twice</strong> — independently of whether Push and Pull stayed on track. Splitting a vague habit into specific, separately-tracked quests is a strategy in itself: it stops one strong lift from hiding a weak one.</p>
+  </section>
+
+  <section class="chapter" id="ch05">
+    <div class="chapter-head"><span class="chapter-num">CH. 05</span><h2 class="chapter-title">Reading the HUD</h2></div>
+    <p class="lead">The top of the dashboard is your instant status readout. Here's what each light means.</p>
+    <div class="hud-item"><span class="hud-dot ok"></span><div><h4>Hero ring — steady cyan</h4><p>Everything's nominal. No stat is decaying, nothing's critical.</p></div></div>
+    <div class="hud-item"><span class="hud-dot warn"></span><div><h4>Hero ring — pulsing amber</h4><p>At least one stat is currently decaying. Not an emergency, but the clock is running — check the alert banner below it to see which one.</p></div></div>
+    <div class="hud-item"><span class="hud-dot crit"></span><div><h4>Hero ring — pulsing red</h4><p>A stat has dropped below 20. This is the "go look now" signal.</p></div></div>
+    <p>Tap any chip in the <strong>alert strip</strong> and it jumps you straight to that stat's quests in the Work Order Log — no manual searching. The <strong>Position — Today</strong> panel below it gives you the plain-language version: what's working this week, and what's dragging you down, with clickable links straight to the relevant quests.</p>
+  </section>
+
+  <section class="chapter" id="ch06">
+    <div class="chapter-head"><span class="chapter-num">CH. 06</span><h2 class="chapter-title">Side Resources</h2></div>
+    <p class="lead">Two things get tracked outside the quest log entirely: water and alcohol.</p>
+    <p><strong>Water</strong> — tap the Water tab. The quick buttons (+250ml / +500ml / +750ml) or the custom field <strong>add</strong> to today's running total; they don't replace it. Every tap moves the bar.</p>
+    <p><strong>Alcohol</strong> — tap the Alcohol tab, log drink type, volume, and ABV. The app tracks running units and an estimated peak BAC automatically for the session — you just log each drink as it happens.</p>
+  </section>
+
+  <section class="chapter" id="ch07">
+    <div class="chapter-head"><span class="chapter-num">CH. 07</span><h2 class="chapter-title">Fast Capture</h2></div>
+    <p class="lead">On desktop, you don't have to open the Add Task form to jot something down.</p>
+    <p>Hit <kbd>⌘K</kbd> (Mac) or <kbd>Ctrl K</kbd> (Windows) anywhere on the dashboard. A quick-capture box pops up — type the quest, hit <kbd>Enter</kbd>, done. <kbd>Esc</kbd> cancels.</p>
+    <div class="callout tip">
+      <div class="callout-head">🡒 What happens next</div>
+      <p>Quick-captured items land at the bottom of your Work Order Log without a Domain, Type, or points yet — they're a placeholder, not a fully set-up quest. Go back and fill those in when you have a minute; that's how they actually start earning stat points.</p>
+    </div>
+  </section>
+
+  <section class="chapter" id="ch08">
+    <div class="chapter-head"><span class="chapter-num">CH. 08</span><h2 class="chapter-title">Leveling Up</h2></div>
+    <p class="lead">Your six stats average into one number — your <strong>Index</strong>, 0 to 100. As your Index climbs, you move up six title tiers.</p>
+    <div class="ladder">
+      <div class="rung top"><span class="rung-num">6</span><span class="rung-name">SOVEREIGN</span><span class="rung-desc">The top of the ladder</span></div>
+      <div class="rung"><span class="rung-num">5</span><span class="rung-name">MASTER BUILDER</span></div>
+      <div class="rung"><span class="rung-num">4</span><span class="rung-name">ARCHITECT</span></div>
+      <div class="rung"><span class="rung-num">3</span><span class="rung-name">CRAFTSMAN</span></div>
+      <div class="rung"><span class="rung-num">2</span><span class="rung-name">JOURNEYMAN</span></div>
+      <div class="rung"><span class="rung-num">1</span><span class="rung-name">APPRENTICE</span><span class="rung-desc">Everyone starts here</span></div>
+    </div>
+    <p>The exact Index score you need for each tier is tuned from time to time, so rather than print numbers here that could go stale, check the <strong>"Next Tier"</strong> readout in the header — it always shows your live distance to the next rung, with a progress bar underneath it.</p>
+  </section>
+
+  <section class="chapter" id="ch09">
+    <div class="chapter-head"><span class="chapter-num">CH. 09</span><h2 class="chapter-title">When Something Looks Broken</h2></div>
+    <table class="trouble">
+      <thead><tr><th>What you're seeing</th><th>What's going on</th></tr></thead>
+      <tbody>
+        <tr><td>A stat isn't moving despite real effort</td><td>The matching quest wasn't marked complete in the app — check the Work Order Log for its last completion date.</td></tr>
+        <tr><td>"Could not reach Builder OS backend"</td><td>The connection may be waking up from idle. Refresh. If it keeps happening, flag it — don't keep retrying blindly.</td></tr>
+        <tr><td>You got signed out unexpectedly</td><td>Normal — session expired. Sign in again with Google.</td></tr>
+        <tr><td>A RECURRING quest's due date looks like a blank date-picker</td><td>Don't save it. This is a known display glitch — flag it instead of typing a date in to "fix" it.</td></tr>
+        <tr><td>Points Late didn't change after you edited Points On-Time</td><td>Points Late was manually overridden at some point and stopped auto-tracking. Clear and retype it to restore the automatic 75% link, or leave it if that override was intentional.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter" id="ch10">
+    <div class="chapter-head"><span class="chapter-num">CH. 10</span><h2 class="chapter-title">Quick Reference</h2></div>
+    <dl class="glossary">
+      <div class="gterm"><dt>Stat</dt><dd>One of six abilities (STR/END/REC/INT/EQ/SOV), 0–100, trained by completing tagged quests.</dd></div>
+      <div class="gterm"><dt>Domain</dt><dd>One of seven life areas your quests are filed under.</dd></div>
+      <div class="gterm"><dt>Index</dt><dd>The average of your six stats — the single number your tier is based on.</dd></div>
+      <div class="gterm"><dt>Decay</dt><dd>A point penalty for leaving a stat's quests untouched past its grace period.</dd></div>
+      <div class="gterm"><dt>Cadence</dt><dd>How often a RECURRING quest resets — DAILY, WEEKLY, FORTNIGHTLY, MONTHLY, 3X_WEEKLY.</dd></div>
+      <div class="gterm"><dt>Builder Level / Title</dt><dd>Your overall rank, shown in the hero ring, mapped from your Index.</dd></div>
+    </dl>
+  </section>
+
+</div>
+
+<footer class="page">BUILDER OS · PLAYER'S GUIDE</footer>
+
+<script>
+  // reading progress bar
+  function updateProgress(){
+    const h=document.documentElement;
+    const scrolled=h.scrollTop;
+    const height=h.scrollHeight-h.clientHeight;
+    document.getElementById('progressFill').style.width=(height>0?(scrolled/height)*100:0)+'%';
+  }
+  document.addEventListener('scroll', updateProgress, {passive:true});
+  updateProgress();
+
+  // active chapter highlight in the sticky nav
+  const links=Array.from(document.querySelectorAll('#toc a'));
+  const sections=links.map(l=>document.querySelector(l.getAttribute('href')));
+  const io=new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        const id='#'+entry.target.id;
+        links.forEach(l=>l.classList.toggle('active', l.getAttribute('href')===id));
+      }
+    });
+  }, {rootMargin:'-40% 0px -55% 0px'});
+  sections.forEach(s=>{ if(s) io.observe(s); });
+</script>
+
+</body>
+</html>
