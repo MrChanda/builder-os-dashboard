@@ -11,11 +11,11 @@ window.BUILDER_CONFIG = {
   // IMPORTANT: when redeploying, EDIT the existing deployment to a new
   // version (Deploy → Manage deployments → pencil icon → New version).
   // Never "New deployment" — that rotates this URL.
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwZKD79oImowJl0swveHiba5VYWxzPUBHWg1wvzd48dhoWxqnT0npKaM6koHsm_KkSfyA/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwmKwHlOAyvVXlS89fE9Hk1TuATrFRFDBbvta1LI_7O7TRqAqrqOY2nptbmJ6sZX3O8MQ/exec',
 
   // Google Identity Services OAuth Client ID (Web application type).
   // Create at console.cloud.google.com → APIs & Services → Credentials.
   // Authorized JavaScript origin: https://<you>.github.io
   // Leave as '' to run with auth DISABLED (pre-backend-deploy mode).
-  GIS_CLIENT_ID: '991842368098-28no9bbhldtmdqqgbbgi3b5ocvc9nofa.apps.googleusercontent.com',
+  GIS_CLIENT_ID: '',
 };
