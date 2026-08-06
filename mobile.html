@@ -257,6 +257,11 @@
 
   <section id="view-dashboard" class="view active" role="tabpanel" aria-labelledby="nav-dashboard">
     <div class="alarm-strip nominal" id="alarmStrip"><span class="alarm-dot"></span><span class="alarm-label" id="alarmLabel">SYSTEMS NOMINAL</span></div>
+    <div class="alarm-strip nominal" id="streakStrip" style="margin-top:var(--s2); display:none;">
+      <span class="alarm-dot" id="streakDot"></span>
+      <span class="alarm-label" id="streakLabel">STREAK --</span>
+      <span class="alarm-chip" id="debtChip" style="display:none;"></span>
+    </div>
     <div class="section-label">Pillar Status</div>
     <div class="ring-grid" id="statGrid"></div>
     <div class="section-label">Today's Tasks</div>
@@ -376,6 +381,27 @@ function renderHero(stats){ const vals=STAT_KEYS.map(s=>Number(stats[s.key])).fi
 
 function renderGauges(stats,decayFlags){ const grid=document.getElementById('statGrid'); if(!stats){grid.innerHTML='<div class="msg" style="grid-column:1/-1;">No stat data yet.</div>';return;} const flags=(decayFlags||'').toUpperCase(); grid.innerHTML=STAT_KEYS.map(s=>{const val=stats[s.key];const numeric=!(val===''||val==null||isNaN(Number(val)));const isDecaying=s.decayKey&&flags.includes(s.decayKey);const isCritical=numeric&&Number(val)<20;let cellClass='flag-ok',colorVar='--ring-ok';if(!numeric){cellClass='flag-nodata';colorVar='--ring-track';}else if(isCritical){cellClass='flag-critical';colorVar='--ring-crit';}else if(isDecaying){cellClass='flag-decay';colorVar='--ring-decay';}const centerVal=numeric?`<span class="ring-val" data-count="${Number(val)}">0</span>`:`<span class="ring-val">--</span>`;const flagMark=!numeric?'':(isCritical?'<span class="ring-flag crit">▼</span>':isDecaying?'<span class="ring-flag decay">▲</span>':'');return `<div class="ring-cell ${cellClass}" data-stat="${s.label}"><div class="ring-wrap">${ringSVG(val,colorVar,78,8,`${s.label} ${numeric?val:'--'}`)}${flagMark}<div class="ring-center">${centerVal}</div></div><div class="ring-label">${s.label}</div></div>`;}).join(''); animateRings(grid); }
 
+/* ── Phase B: streak + accountability debt strip ──────────
+   Backed by GET action=day_state → { streak: {displayStreak, todayProvisional, historicalStreak},
+   debt_7d: {totalPenalty, missedCloses, windowDays}, debt_30d?: {...} }
+   Reuses the existing .alarm-strip / .alarm-dot / .alarm-label / .alarm-chip
+   classes — no new CSS. Hides itself entirely if the endpoint doesn't answer
+   or the shape doesn't match, so it fails silently rather than breaking the
+   dashboard (same Promise.allSettled contract as the rest of loadAll). */
+function renderStreakDebt(dayState){
+  const strip=document.getElementById('streakStrip');
+  if(!strip) return;
+  if(!dayState || !dayState.streak){ strip.style.display='none'; return; }
+  strip.style.display='';
+  const s=dayState.streak, debt=dayState.debt_7d||{totalPenalty:0,missedCloses:0};
+  const alive = s.todayProvisional==='ALIVE';
+  document.getElementById('streakLabel').textContent = `🔥 ${s.displayStreak} DAY STREAK` + (alive?'':' — AT RISK');
+  strip.className = 'alarm-strip ' + (alive ? 'nominal' : 'active');
+  const chip=document.getElementById('debtChip');
+  if(debt.missedCloses>0){ chip.style.display=''; chip.textContent = Math.round(debt.totalPenalty)+' pts debt (7d)'; }
+  else { chip.style.display='none'; }
+}
+
 function renderAlarms(decayFlags,pillarCap){ const strip=document.getElementById('alarmStrip'),label=document.getElementById('alarmLabel'); const flags=(decayFlags||'').trim(); if(!flags&&pillarCap!=='YES'){strip.className='alarm-strip nominal';label.textContent='SYSTEMS NOMINAL';return;} strip.className='alarm-strip active'; const chips=flags.split(/\s+/).filter(Boolean).map(f=>`<span class="alarm-chip">${f}</span>`).join(''); strip.innerHTML=`<span class="alarm-dot"></span><span class="alarm-label">ALERT</span>${chips}`+(pillarCap==='YES'?'<span class="alarm-chip">PILLAR-CAP</span>':''); }
 
 let currentTasks=[]; const mTaskFilter={q:'',domain:'',page:1}; const M_PAGE=10;
@@ -407,7 +433,7 @@ setInterval(refreshSyncDisplay,30000);
 function initBottomNav(){ const btns=Array.from(document.querySelectorAll('.nav-btn[role="tab"]')); function select(btn){ btns.forEach(b=>{ const on=b===btn; b.setAttribute('aria-selected',on?'true':'false'); b.tabIndex=on?0:-1; b.classList.toggle('active',on); const view=document.getElementById(b.getAttribute('aria-controls')); if(view){view.classList.toggle('active',on);view.hidden=!on;} }); } btns.forEach(btn=>btn.addEventListener('click',()=>{select(btn);btn.focus();})); }
 initBottomNav();
 
-async function loadAll(){ startBootSequence(); try{ const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week')]); const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb; const cfgRes=unwrap(results[0],null),statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]); if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l); const stats=statsRes.stats; if(stats){lastSyncISO=stats.calculated_at;refreshSyncDisplay();renderHero(stats);renderGauges(stats,stats.decay_flags);renderAlarms(stats.decay_flags,stats.pillar_cap);} else{renderGauges(null);} renderWater(healthRes.health); currentTasks=(tasksRes.tasks||[]).filter(t=>t.task_id);renderTasks(); renderAlcohol(alcoholRes.sessions); }catch(err){showToast('Could not reach the backend.','error');console.error(err);}finally{stopBootSequence();} }
+async function loadAll(){ startBootSequence(); try{ const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week'),apiGet('day_state')]); const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb; const cfgRes=unwrap(results[0],null),statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]),dayStateRes=unwrap(results[5]); if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l); const stats=statsRes.stats; if(stats){lastSyncISO=stats.calculated_at;refreshSyncDisplay();renderHero(stats);renderGauges(stats,stats.decay_flags);renderAlarms(stats.decay_flags,stats.pillar_cap);} else{renderGauges(null);} renderStreakDebt(dayStateRes); renderWater(healthRes.health); currentTasks=(tasksRes.tasks||[]).filter(t=>t.task_id);renderTasks(); renderAlcohol(alcoholRes.sessions); }catch(err){showToast('Could not reach the backend.','error');console.error(err);}finally{stopBootSequence();} }
 document.getElementById('refreshBtn').addEventListener('click',loadAll);
 document.getElementById('nav-mood')?.addEventListener('click', loadMood);
 /* ── FLOATING ADD BUTTON (mobile) ── */
