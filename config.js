@@ -11,7 +11,7 @@ window.BUILDER_CONFIG = {
   // IMPORTANT: when redeploying, EDIT the existing deployment to a new
   // version (Deploy → Manage deployments → pencil icon → New version).
   // Never "New deployment" — that rotates this URL.
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwmKwHlOAyvVXlS89fE9Hk1TuATrFRFDBbvta1LI_7O7TRqAqrqOY2nptbmJ6sZX3O8MQ/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbFu33_ioYg--VHHHsQ4gfUiPap81KiUfVc9lnn6Haep05mEztGwvSqraDRFr0PQLB/exec',
 
   // Google Identity Services OAuth Client ID (Web application type).
   // Create at console.cloud.google.com → APIs & Services → Credentials.
