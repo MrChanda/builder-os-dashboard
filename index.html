@@ -413,6 +413,11 @@
     <div class="section-label">Pillar Status</div>
     <div class="ring-grid" id="gaugePanel"></div>
     <div class="alarm-strip nominal" id="alarmStrip"><span class="alarm-dot"></span><span class="alarm-label" id="alarmLabel">SYSTEMS NOMINAL</span></div>
+    <div class="alarm-strip nominal" id="streakStrip" style="margin-top:var(--s3); display:none;">
+      <span class="alarm-dot" id="streakDot"></span>
+      <span class="alarm-label" id="streakLabel">STREAK --</span>
+      <span class="alarm-chip" id="debtChip" style="display:none;"></span>
+    </div>
     <div class="dash-cols">
       <div class="dash-col">
         <div class="section-label">Position — Today</div>
@@ -696,6 +701,27 @@ function renderGauges(stats, decayFlags){
       </div>`;
   }).join('');
   animateRings(panel);
+}
+
+/* ── Phase B: streak + accountability debt strip ──────────
+   Backed by GET action=day_state → { streak: {displayStreak, todayProvisional, historicalStreak},
+   debt_7d: {totalPenalty, missedCloses, windowDays}, debt_30d?: {...} }
+   Reuses the existing .alarm-strip / .alarm-dot / .alarm-label / .alarm-chip
+   classes — no new CSS. Hides itself entirely if the endpoint doesn't answer
+   or the shape doesn't match, so it fails silently rather than breaking the
+   dashboard (same Promise.allSettled contract as the rest of loadAll). */
+function renderStreakDebt(dayState){
+  const strip=document.getElementById('streakStrip');
+  if(!strip) return;
+  if(!dayState || !dayState.streak){ strip.style.display='none'; return; }
+  strip.style.display='';
+  const s=dayState.streak, debt=dayState.debt_7d||{totalPenalty:0,missedCloses:0};
+  const alive = s.todayProvisional==='ALIVE';
+  document.getElementById('streakLabel').textContent = `🔥 ${s.displayStreak} DAY STREAK` + (alive?'':' — AT RISK');
+  strip.className = 'alarm-strip ' + (alive ? 'nominal' : 'active');
+  const chip=document.getElementById('debtChip');
+  if(debt.missedCloses>0){ chip.style.display=''; chip.textContent = Math.round(debt.totalPenalty)+' pts debt (7d)'; }
+  else { chip.style.display='none'; }
 }
 
 const HEATMAP_DOMAINS=['SCHOOL','WORK','HUSTLE','HEALTH','HELP','INNER','SOV'];
@@ -1044,14 +1070,15 @@ setInterval(refreshSyncDisplay, 30000);
 async function loadAll(){
   startBootSequence();
   try{
-    const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week'),apiGet('completions_heatmap',{days:56})]);
+    const results=await Promise.allSettled([hydrateConfig(),apiGet('today_stats'),apiGet('today_health'),apiGet('tasks'),apiGet('alcohol_week'),apiGet('completions_heatmap',{days:56}),apiGet('day_state')]);
     const unwrap=(r,fb={})=>r.status==='fulfilled'?r.value:fb;
-    const cfgRes=unwrap(results[0],null),statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]),heatmapRes=unwrap(results[5]);
+    const cfgRes=unwrap(results[0],null),statsRes=unwrap(results[1]),healthRes=unwrap(results[2]),tasksRes=unwrap(results[3]),alcoholRes=unwrap(results[4]),heatmapRes=unwrap(results[5]),dayStateRes=unwrap(results[6]);
     if(cfgRes&&cfgRes.targets&&Number(cfgRes.targets.water_l)>0)WATER_GOAL_L=Number(cfgRes.targets.water_l);
     results.forEach((r,i)=>{ if(r.status==='rejected')console.warn(`Builder OS: API call ${i} failed —`,r.reason); });
     const stats=statsRes.stats;
     if(stats){ lastSyncISO=stats.calculated_at; refreshSyncDisplay(); renderHero(stats); renderGauges(stats,stats.decay_flags); renderAlarms(stats.decay_flags,stats.pillar_cap); applyAvatar(stats.builder_level); }
     else { renderGauges(null); }
+    renderStreakDebt(dayStateRes);
     renderWater(healthRes.health); renderHeatmap(heatmapRes.completions);
     currentTasks=(tasksRes.tasks||[]).filter(t=>t.task_id); renderTasks();
     renderPosition(currentTasks, heatmapRes.completions, statsRes.stats);
