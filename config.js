@@ -17,5 +17,5 @@ window.BUILDER_CONFIG = {
   // Create at console.cloud.google.com → APIs & Services → Credentials.
   // Authorized JavaScript origin: https://<you>.github.io
   // Leave as '' to run with auth DISABLED (pre-backend-deploy mode).
-  GIS_CLIENT_ID: '',
+  GIS_CLIENT_ID: '991842368098-28no9bbhldtmdqqgbbgi3b5ocvc9nofa.apps.googleusercontent.com',
 };
