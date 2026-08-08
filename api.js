@@ -8,6 +8,14 @@
  *  - Single TIERS source of truth (real CONFIG ladder), shared by
  *    both frontends; hydrated live from backend getConfig
  *  - AVATAR_STAGES derived from tiers, no independent breakpoints
+ *  - apiPost now NEVER throws — network/parse failures resolve to
+ *    a { status:'error', error } object, same shape as a backend
+ *    error response. Every caller already checks
+ *    `result.error || result.status==='error'` to reset UI state
+ *    (button text, row-dirty flags, etc); a thrown rejection was
+ *    skipping that entire path and leaving buttons stuck on "..."
+ *    forever with no way to retry. Fixed once here so it covers
+ *    both index.html and mobile.html without touching either.
  * ============================================================
  */
 
@@ -102,17 +110,34 @@ async function apiGet(action, params, _retried) {
 
 // text/plain content-type avoids a CORS preflight against the Apps
 // Script endpoint — doPost still parses the body as JSON regardless.
+//
+// This function never throws. Any failure — network abort, timeout,
+// non-JSON response, GIS/FedCM interference, whatever — resolves to
+// { status:'error', error: <message> }, the same shape a real backend
+// error takes. Callers only ever need one check:
+//   if (result.error || result.status === 'error') { ...handle... }
+// No caller needs its own try/catch around apiPost for this to work.
 async function apiPost(action, body) {
   const payload = { action, ...(body || {}) };
   if (AUTH.enabled && AUTH.token) payload.id_token = AUTH.token;
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (data && data.error === 'AUTH') { AUTH.expire(); }
-  return data;
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      return { status: 'error', error: 'Bad response from server (HTTP ' + res.status + ')' };
+    }
+    if (data && data.error === 'AUTH') { AUTH.expire(); }
+    return data;
+  } catch (networkErr) {
+    console.error('apiPost(' + action + ') failed:', networkErr);
+    return { status: 'error', error: (networkErr && networkErr.message) || 'Network request failed' };
+  }
 }
 
 /* ── STAT CONFIG (unchanged) ────────────────────────────── */
